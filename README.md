@@ -144,7 +144,7 @@ flowchart TB
 
 ---
 
-## 🔄 The LangGraph Agentic Lifecycle
+## The LangGraph Agentic Lifecycle
 
 The core intelligence of Referral Guardian is implemented as a cyclic state graph using **LangGraph**:
 
