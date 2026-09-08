@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { portalPath, useAuth, UserRole } from "@/lib/AuthContext";
-import { Lock, Mail, ShieldAlert, ArrowRight, User, CheckCircle2, Sparkles, ClipboardList, GraduationCap } from "lucide-react";
+import { portalPath, useAuth, UserRole, isStudentCoordinatorEmail, getEnforcedRole } from "@/lib/AuthContext";
+import { Lock, Mail, ShieldAlert, ArrowRight, User, CheckCircle2, Sparkles, ClipboardList, GraduationCap, Check } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,9 +24,11 @@ export default function SignupPage() {
     router.replace(portalPath(profile.role));
   }, [authLoading, profile, router]);
 
+  const isRitStudent = isStudentCoordinatorEmail(email);
+
   const handleQuickDemo = (demoRole: UserRole) => {
     if (demoRole === "coordinator") {
-      setDemoUser("coordinator", "dr.smith@school.org", "Dr. Jane Smith (Coordinator)");
+      setDemoUser("coordinator", "24br02024@rit.ac.in", "Student Coordinator (24br02024@rit.ac.in)");
     } else {
       setDemoUser("special_educator", "dr.vance@clinic.org", "Dr. Marcus Vance (Special Educator)");
     }
@@ -41,6 +43,8 @@ export default function SignupPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    const effectiveRole = getEnforcedRole(email, role);
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -48,7 +52,7 @@ export default function SignupPage() {
         options: {
           data: {
             full_name: fullName,
-            role: role,
+            role: effectiveRole,
           },
         },
       });
@@ -60,7 +64,7 @@ export default function SignupPage() {
 
       if (data.session) {
         setSuccessMsg("Account created. Redirecting to your portal…");
-        router.push(portalPath(role));
+        router.push(portalPath(effectiveRole));
         return;
       }
 
@@ -159,24 +163,33 @@ export default function SignupPage() {
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Select Your Role Persona *
               </label>
+              {isRitStudent && (
+                <div className="mb-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-800 flex items-center space-x-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Verified RIT Student Coordinator — Role locked to Coordinator</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setRole("coordinator")}
                   className={`py-2 px-3 text-xs font-semibold rounded-lg border transition ${
-                    role === "coordinator"
-                      ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-xs"
+                    (isRitStudent || role === "coordinator")
+                      ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-xs font-bold"
                       : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
-                  📋 School Coordinator
+                  📋 Student Coordinator
                 </button>
                 <button
                   type="button"
+                  disabled={isRitStudent}
                   onClick={() => setRole("special_educator")}
                   className={`py-2 px-3 text-xs font-semibold rounded-lg border transition ${
-                    role === "special_educator"
-                      ? "bg-purple-50 text-purple-700 border-purple-300 shadow-xs"
+                    isRitStudent
+                      ? "opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200"
+                      : role === "special_educator"
+                      ? "bg-purple-50 text-purple-700 border-purple-300 shadow-xs font-bold"
                       : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                   }`}
                 >

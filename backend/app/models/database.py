@@ -34,6 +34,13 @@ def ensure_sqlite_columns():
                 cols = [row[1] for row in res.fetchall()]
                 if "educator_summary" not in cols:
                     conn.exec_driver_sql("ALTER TABLE cases ADD COLUMN educator_summary TEXT")
+                if "assigned_specialist_email" not in cols:
+                    conn.exec_driver_sql("ALTER TABLE cases ADD COLUMN assigned_specialist_email VARCHAR")
+
+                res_spec = conn.exec_driver_sql("PRAGMA table_info(specialists)")
+                spec_cols = [row[1] for row in res_spec.fetchall()]
+                if "email" not in spec_cols:
+                    conn.exec_driver_sql("ALTER TABLE specialists ADD COLUMN email VARCHAR")
         except Exception:
             pass
 

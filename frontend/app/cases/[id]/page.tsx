@@ -15,6 +15,9 @@ import {
   X,
   FileText,
   UserCheck,
+  FastForward,
+  RotateCcw,
+  Zap,
 } from "lucide-react";
 import RouteGuard from "@/components/RouteGuard";
 import { useAuth } from "@/lib/AuthContext";
@@ -67,6 +70,7 @@ interface CaseDetails {
   status: string;
   coordinator: string;
   assigned_specialist_name?: string;
+  assigned_specialist_email?: string;
   bottleneck: string | null;
   coordinator_notes?: string;
   diagnostic_details?: string;
@@ -95,6 +99,7 @@ export default function CaseDetailPage() {
   const [caseData, setCaseData] = useState<CaseDetails | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [runningAgent, setRunningAgent] = useState<boolean>(false);
+  const [fastForwarding, setFastForwarding] = useState<boolean>(false);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isModifying, setIsModifying] = useState(false);
@@ -138,10 +143,11 @@ export default function CaseDetailPage() {
         id: data.id,
         child_id: data.child_identifier || "STU-8821",
         referral_type: data.referral_type || "Evaluation",
-        status: data.status,
+        status: data.status || "ACTIVE",
         coordinator: data.coordinator_id || "Dr. Smith",
         assigned_specialist_name: data.assigned_specialist_name,
-        bottleneck: data.current_bottleneck || (rec ? rec.bottleneck : null),
+        assigned_specialist_email: data.assigned_specialist_email,
+        bottleneck: data.current_bottleneck || null,
         coordinator_notes: data.coordinator_notes,
         diagnostic_details: data.diagnostic_details,
         days_open: data.days_open || 0,
@@ -167,6 +173,36 @@ export default function CaseDetailPage() {
     init();
   }, [caseId]);
 
+  const handleFastForward = async (days: number) => {
+    setFastForwarding(true);
+    setErrorMsg(null);
+    setActionSuccessMsg(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/cases/${caseId}/fast-forward`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days }),
+      });
+      if (res.ok) {
+        await fetchCaseFromBackend();
+        if (days >= 20) {
+          setActionSuccessMsg(`Fast-forwarded to Day ${days}: Statutory 20-day deadline exceeded! Flagged APPOINTMENT_DELAYED bottleneck.`);
+        } else if (days === 0) {
+          setActionSuccessMsg("Timeline reset to Day 0 intake.");
+        } else {
+          setActionSuccessMsg(`Fast-forwarded timeline to Day ${days}.`);
+        }
+      } else {
+        setErrorMsg("Failed to fast-forward case timeline.");
+      }
+    } catch (err: any) {
+      setErrorMsg("Network error during fast-forward: " + err.message);
+    } finally {
+      setFastForwarding(false);
+    }
+  };
+
   const handleRunAgent = async () => {
     setRunningAgent(true);
     setErrorMsg(null);
@@ -177,8 +213,13 @@ export default function CaseDetailPage() {
         method: "POST",
       });
       if (res.ok) {
+        const agentData = await res.json();
         await fetchCaseFromBackend();
-        setActionSuccessMsg("Referral Guardian analyzed case and paused for human approval.");
+        if (agentData?.bottleneck) {
+          setActionSuccessMsg("Referral Guardian analyzed case and paused for human approval.");
+        } else {
+          setActionSuccessMsg("Referral Guardian analyzed case: Specialist response confirmed! Case is active with no bottlenecks.");
+        }
       } else {
         setErrorMsg("Failed to run agent.");
       }
@@ -293,7 +334,11 @@ export default function CaseDetailPage() {
         setShowEventModal(false);
         setCustomEventDetails("");
         await fetchCaseFromBackend();
-        setActionSuccessMsg(`Added '${selectedEventType}' to timeline. You can now re-run the agent!`);
+        setActionSuccessMsg(
+          isCoordinator
+            ? `Added '${selectedEventType}' to timeline. You can now re-run the agent!`
+            : `Added '${selectedEventType}' to timeline.`
+        );
       } else {
         alert("Failed to add event");
       }
@@ -383,8 +428,21 @@ export default function CaseDetailPage() {
                 </span>
               )}
             </div>
-            <p className="text-sm text-slate-600 mt-1">
-              Referral Type: <strong className="text-slate-800">{caseData.referral_type}</strong> • Coordinator: <strong className="text-slate-800">{caseData.coordinator}</strong>
+            <p className="text-sm text-slate-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Referral Type: <strong className="text-slate-800">{caseData.referral_type}</strong></span>
+              <span>•</span>
+              <span>Coordinator: <strong className="text-slate-800">{caseData.coordinator}</strong></span>
+              {(caseData.assigned_specialist_name || caseData.assigned_specialist_email) && (
+                <>
+                  <span>•</span>
+                  <span>
+                    Specialist: <strong className="text-purple-700">{caseData.assigned_specialist_name || "Assigned"}</strong>
+                    {caseData.assigned_specialist_email && (
+                      <span className="font-mono text-purple-600 ml-1 text-xs">({caseData.assigned_specialist_email})</span>
+                    )}
+                  </span>
+                </>
+              )}
             </p>
           </div>
 
@@ -392,7 +450,7 @@ export default function CaseDetailPage() {
             <button
               onClick={handleRunAgent}
               disabled={runningAgent}
-              className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg shadow-sm transition disabled:opacity-50"
+              className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:from-purple-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg shadow-sm transition disabled:opacity-50"
             >
               <Sparkles className={`w-4 h-4 ${runningAgent ? "animate-spin" : ""}`} />
               <span>{runningAgent ? "Evaluating Graph..." : "Run Referral Guardian AI"}</span>
@@ -431,6 +489,84 @@ export default function CaseDetailPage() {
           </div>
         )}
 
+        {/* Statutory 20-Day Timeline Simulator (Coordinator only) */}
+        {isCoordinator && (
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Statutory 20-Day Assessment Timeline Simulator
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Simulate time-warp to test 20-day statutory assessment compliance & bottleneck triggers.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-slate-700">
+                  Current Age: <span className={caseData.days_open >= 20 ? "text-rose-600 font-extrabold" : "text-indigo-600 font-extrabold"}>{caseData.days_open} Days</span> / 20 Max
+                </span>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ${
+                  caseData.days_open >= 20
+                    ? "bg-rose-500"
+                    : caseData.days_open >= 15
+                    ? "bg-amber-500"
+                    : "bg-indigo-600"
+                }`}
+                style={{ width: `${Math.min((caseData.days_open / 20) * 100, 100)}%` }}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-[11px] font-semibold text-slate-500 mr-1">Fast-Forward:</span>
+              <button
+                onClick={() => handleFastForward(5)}
+                disabled={fastForwarding}
+                className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium transition shadow-2xs disabled:opacity-50"
+              >
+                <FastForward className="w-3 h-3 text-indigo-500" />
+                <span>+5 Days</span>
+              </button>
+              <button
+                onClick={() => handleFastForward(15)}
+                disabled={fastForwarding}
+                className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium transition shadow-2xs disabled:opacity-50"
+              >
+                <FastForward className="w-3 h-3 text-amber-500" />
+                <span>+15 Days</span>
+              </button>
+              <button
+                onClick={() => handleFastForward(21)}
+                disabled={fastForwarding}
+                className="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-xs font-semibold transition shadow-2xs disabled:opacity-50"
+              >
+                <FastForward className="w-3 h-3 text-rose-600" />
+                <span>+21 Days (Overdue)</span>
+              </button>
+              <button
+                onClick={() => handleFastForward(0)}
+                disabled={fastForwarding}
+                className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 rounded text-xs font-medium transition shadow-2xs ml-auto disabled:opacity-50"
+                title="Reset case age back to Day 0"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset to Day 0</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {actionSuccessMsg && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3.5 text-xs text-emerald-800 font-semibold flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -445,12 +581,13 @@ export default function CaseDetailPage() {
         )}
       </div>
 
-      {/* Main Grid: AI Recommendation Card (2 cols) vs Timeline (1 col) */}
+      {/* Main Grid: AI Recommendation Card (2 cols for coordinator) vs Timeline (1 col for coordinator, 3 cols for specialist) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column: AI Recommendation & Human Approval (2 cols) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        {/* Left Column: AI Recommendation & Human Approval (Coordinator only) */}
+        {isCoordinator && (
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Sparkles className="w-5 h-5 text-indigo-600" />
@@ -593,24 +730,36 @@ export default function CaseDetailPage() {
                   )}
                 </div>
               ) : (
-                <div className="py-12 text-center space-y-4">
-                  <Sparkles className="w-10 h-10 text-indigo-400 mx-auto" />
+                <div className="py-10 text-center space-y-3">
+                  {caseData.diagnostic_details ? (
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                  ) : (
+                    <Sparkles className="w-10 h-10 text-indigo-400 mx-auto" />
+                  )}
                   <div>
-                    <h3 className="font-bold text-slate-800 text-base">No Pending Recommendation</h3>
+                    <h3 className="font-bold text-slate-800 text-base">
+                      {caseData.diagnostic_details
+                        ? "Specialist Response Received"
+                        : "No Pending Recommendations"}
+                    </h3>
                     <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
-                      {isCoordinator
-                        ? 'Click "Run Referral Guardian AI" to evaluate the case history, detect bottlenecks, and propose next-best actions.'
-                        : 'No pending recommendation. Agent evaluations and approvals are coordinated by the case coordinator.'}
+                      {caseData.diagnostic_details
+                        ? 'Clinical findings have been logged by the specialist. The referral is active with no bottlenecks.'
+                        : isCoordinator
+                        ? 'Click "Run Referral Guardian AI" to evaluate case history, detect bottlenecks, and propose next actions.'
+                        : 'No pending recommendation. The case is progressing normally.'}
                     </p>
                   </div>
                   {isCoordinator && (
                     <button
                       onClick={handleRunAgent}
                       disabled={runningAgent}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg shadow-xs disabled:opacity-50 inline-flex items-center gap-2"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-xs disabled:opacity-50 inline-flex items-center gap-2 mt-2"
                     >
-                      <Sparkles className="w-4 h-4" />
-                      <span>Run Agent Now</span>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{caseData.diagnostic_details ? "Re-Evaluate Case" : "Run Agent Now"}</span>
                     </button>
                   )}
                 </div>
@@ -618,9 +767,10 @@ export default function CaseDetailPage() {
             </div>
           </div>
         </div>
+      )}
 
-        {/* Right Column: Case Timeline (1 col) */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-6">
+        {/* Right Column: Case Timeline (Enlarged to 3 cols for Specialist, 1 col for Coordinator) */}
+        <div className={`bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-6 ${isCoordinator ? "lg:col-span-1" : "lg:col-span-3"}`}>
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="font-bold text-slate-800 text-lg flex items-center space-x-2">
               <Clock className="w-5 h-5 text-indigo-600" />
@@ -634,7 +784,7 @@ export default function CaseDetailPage() {
             </button>
           </div>
 
-          <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 max-h-[500px] overflow-y-auto pr-2">
+          <div className={`relative border-l-2 border-slate-200 ml-3 space-y-6 overflow-y-auto pr-2 ${isCoordinator ? "max-h-[500px]" : "max-h-[750px]"}`}>
             {caseData.timeline.map((evt) => (
               <div key={evt.id} className="ml-6 relative">
                 <div className="absolute -left-[31px] top-0 w-3 h-3 rounded-full bg-indigo-600 border-2 border-white ring-4 ring-slate-100" />

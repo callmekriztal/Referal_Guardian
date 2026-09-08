@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { CheckCircle2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import RouteGuard from "@/components/RouteGuard";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -10,6 +10,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 interface SpecialistItem {
   id: string;
   name: string;
+  email?: string;
   specialization: string;
   availability_status: string;
 }
@@ -21,8 +22,11 @@ interface CaseItem {
   status: string;
   coordinator?: string;
   assigned_specialist_name?: string;
+  assigned_specialist_email?: string;
   bottleneck: string | null;
   coordinator_notes?: string;
+  diagnostic_details?: string;
+  educator_summary?: string;
   days_open: number;
   followup_attempts: number;
 }
@@ -42,11 +46,13 @@ export default function Dashboard() {
 
   // Create Case Modal state
   const [showModal, setShowModal] = useState(false);
-  const [newChildId, setNewChildId] = useState("");
+  const [newSchoolName, setNewSchoolName] = useState("rit");
+  const [newSerialNo, setNewSerialNo] = useState("5001");
   const [newReferralType, setNewReferralType] = useState("Speech-Language Evaluation");
-  const [newStatus, setNewStatus] = useState("STUCK");
-  const [newBottleneck, setNewBottleneck] = useState("SPECIALIST_UNAVAILABLE");
+  const [newStatus, setNewStatus] = useState("NEW");
+  const [newBottleneck, setNewBottleneck] = useState("");
   const [newSpecialistId, setNewSpecialistId] = useState("");
+  const [newSpecialistEmail, setNewSpecialistEmail] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,8 +79,11 @@ export default function Dashboard() {
           status: c.status || "NEW",
           coordinator: c.coordinator_id || c.coordinator || "Staff",
           assigned_specialist_name: c.assigned_specialist_name,
-          bottleneck: c.current_bottleneck || (c.recommendation ? c.recommendation.bottleneck : null),
+          assigned_specialist_email: c.assigned_specialist_email,
+          bottleneck: c.current_bottleneck || null,
           coordinator_notes: c.coordinator_notes,
+          diagnostic_details: c.diagnostic_details,
+          educator_summary: c.educator_summary,
           days_open: c.days_open || 0,
           followup_attempts: c.followup_attempts || 0,
         }));
@@ -86,6 +95,9 @@ export default function Dashboard() {
         setSpecialists(specsData);
         if (specsData.length > 0 && !newSpecialistId) {
           setNewSpecialistId(specsData[0].id);
+          if (specsData[0].email) {
+            setNewSpecialistEmail(specsData[0].email);
+          }
         }
       }
     } catch (err) {
@@ -101,7 +113,9 @@ export default function Dashboard() {
 
   const handleCreateCase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newChildId.trim()) return;
+    const cleanSchool = (newSchoolName || "school").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+    const cleanSerial = (newSerialNo || "5001").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+    const constructedId = `stu-${cleanSchool}-${cleanSerial}`;
 
     setSubmitting(true);
     try {
@@ -109,20 +123,24 @@ export default function Dashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          child_identifier: newChildId.trim(),
+          child_identifier: constructedId,
+          custom_id: constructedId,
           referral_type: newReferralType,
           status: newStatus,
           current_bottleneck: newBottleneck || null,
           assigned_specialist_id: newSpecialistId || null,
+          assigned_specialist_email: newSpecialistEmail || null,
           coordinator_notes: newNotes || null,
-          initial_event_details: `Referral case initiated by Coordinator. Initial bottleneck: ${newBottleneck || "None"}.`,
+          initial_event_details: `Referral case initiated for ${constructedId} (School: ${newSchoolName || "RIT"}). Initial bottleneck: ${newBottleneck || "None"}.`,
         }),
       });
 
       if (res.ok) {
         setShowModal(false);
-        setNewChildId("");
         setNewNotes("");
+        setNewSpecialistEmail("");
+        setNewStatus("NEW");
+        setNewBottleneck("");
         await fetchData();
       } else {
         alert("Failed to create case");
@@ -294,10 +312,20 @@ export default function Dashboard() {
                   <span>Type: <strong className="text-slate-800">{c.referral_type}</strong></span>
                   <span>•</span>
                   <span>Days Open: <strong className="text-slate-800">{c.days_open} days</strong></span>
-                  {c.assigned_specialist_name && (
+                  {(c.assigned_specialist_name || c.assigned_specialist_email) && (
                     <>
                       <span>•</span>
-                      <span>Specialist: <strong className="text-purple-700">{c.assigned_specialist_name}</strong></span>
+                      <span>
+                        Specialist:{" "}
+                        <strong className="text-purple-700">
+                          {c.assigned_specialist_name || "Assigned Doctor"}
+                        </strong>
+                        {c.assigned_specialist_email && (
+                          <span className="text-xs text-purple-600 font-mono ml-1.5 bg-purple-50 px-2 py-0.5 rounded border border-purple-200/60">
+                            {c.assigned_specialist_email}
+                          </span>
+                        )}
+                      </span>
                     </>
                   )}
                 </div>
@@ -306,6 +334,14 @@ export default function Dashboard() {
                   <div className="mt-2 text-xs flex items-center space-x-2 text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-md w-fit">
                     <span className="font-semibold">Detected Bottleneck:</span>
                     <span>{c.bottleneck.replace(/_/g, " ")}</span>
+                  </div>
+                )}
+
+                {c.diagnostic_details && (
+                  <div className="mt-2 text-xs flex items-center space-x-2 text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-md w-fit max-w-2xl">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="font-semibold shrink-0">Specialist Notes:</span>
+                    <span className="truncate italic">"{c.diagnostic_details}"</span>
                   </div>
                 )}
 
@@ -337,8 +373,14 @@ export default function Dashboard() {
           ))}
 
           {filteredCases.length === 0 && (
-            <div className="p-12 text-center text-slate-500 text-sm">
-              No referral cases match your search.
+            <div className="p-12 text-center text-slate-500 text-sm space-y-3">
+              <p>No referral cases found.</p>
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition"
+              >
+                Create New Referral Case
+              </button>
             </div>
           )}
         </div>
@@ -359,35 +401,82 @@ export default function Dashboard() {
             </div>
 
             <form onSubmit={handleCreateCase} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    School Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. RIT or Greenwood"
+                    value={newSchoolName}
+                    onChange={(e) => setNewSchoolName(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Serial No / Student ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 5001"
+                    value={newSerialNo}
+                    onChange={(e) => setNewSerialNo(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 text-xs text-indigo-900 flex items-center justify-between">
+                <span className="font-semibold">Generated Case Identifier:</span>
+                <span className="font-mono font-bold text-indigo-700">
+                  stu-{(newSchoolName || "school").toLowerCase().trim().replace(/[^a-z0-9]/g, "")}-{(newSerialNo || "5001").toLowerCase().trim().replace(/[^a-z0-9]/g, "")}
+                </span>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Child Identifier *
+                  Referral Type *
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. STU-5001"
-                  value={newChildId}
-                  onChange={(e) => setNewChildId(e.target.value)}
-                  className="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono focus:ring-2 focus:ring-indigo-500"
-                />
+                <select
+                  value={newReferralType}
+                  onChange={(e) => setNewReferralType(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="Speech-Language Evaluation">Speech-Language Evaluation</option>
+                  <option value="IEP Behavioral Assessment">IEP Behavioral Assessment</option>
+                  <option value="Occupational Therapy Evaluation">Occupational Therapy Evaluation</option>
+                  <option value="Child Psychology Assessment">Child Psychology Assessment</option>
+                  <option value="Physical Therapy Evaluation">Physical Therapy Evaluation</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Referral Type
+                    Assign Specialist (Optional)
                   </label>
                   <select
-                    value={newReferralType}
-                    onChange={(e) => setNewReferralType(e.target.value)}
+                    value={newSpecialistId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setNewSpecialistId(id);
+                      const matched = specialists.find((s) => s.id === id);
+                      if (matched?.email) {
+                        setNewSpecialistEmail(matched.email);
+                      }
+                    }}
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="Speech-Language Evaluation">Speech-Language Evaluation</option>
-                    <option value="IEP Behavioral Assessment">IEP Behavioral Assessment</option>
-                    <option value="Occupational Therapy Evaluation">Occupational Therapy Evaluation</option>
-                    <option value="Child Psychology Assessment">Child Psychology Assessment</option>
-                    <option value="Physical Therapy Evaluation">Physical Therapy Evaluation</option>
+                    <option value="">None (Assign later)</option>
+                    {specialists.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.availability_status}){s.email ? ` • ${s.email}` : ""}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -395,55 +484,28 @@ export default function Dashboard() {
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Initial Status
                   </label>
-                  <select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="STUCK">STUCK</option>
-                    <option value="NEW">NEW</option>
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="ESCALATED">ESCALATED</option>
-                  </select>
+                  <div className="w-full text-xs p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-indigo-700 font-bold flex items-center justify-between">
+                    <span>NEW (Day 0 Intake)</span>
+                    <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">Clean</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Simulate Bottleneck
-                  </label>
-                  <select
-                    value={newBottleneck}
-                    onChange={(e) => setNewBottleneck(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
-                  >
-                    <option value="SPECIALIST_UNAVAILABLE">SPECIALIST_UNAVAILABLE</option>
-                    <option value="REPEATED_FAILURE">REPEATED_FAILURE</option>
-                    <option value="MISSING_DOCUMENT">MISSING_DOCUMENT</option>
-                    <option value="NO_SPECIALIST_RESPONSE">NO_SPECIALIST_RESPONSE</option>
-                    <option value="APPOINTMENT_DELAYED">APPOINTMENT_DELAYED</option>
-                    <option value="">None (Clean case)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Assign Specialist
-                  </label>
-                  <select
-                    value={newSpecialistId}
-                    onChange={(e) => setNewSpecialistId(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">None</option>
-                    {specialists.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.availability_status})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                  <span>Doctor / Specialist Gmail ID</span>
+                  <span className="text-[11px] font-normal text-indigo-600 font-sans">Used for Doctor Login</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. doctor@gmail.com"
+                  value={newSpecialistEmail}
+                  onChange={(e) => setNewSpecialistEmail(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  When the doctor logs into the Specialist Portal with this email, they will see this patient in their sorted caseload roster.
+                </p>
               </div>
 
               <div>
