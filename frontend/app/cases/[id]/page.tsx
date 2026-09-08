@@ -499,10 +499,10 @@ export default function CaseDetailPage() {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    Statutory 20-Day IDEA Timeline Simulator
+                    Statutory 20-Day Assessment Timeline Simulator
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    Simulate time-warp to test statutory deadline compliance & bottleneck triggers.
+                    Simulate time-warp to test 20-day statutory assessment compliance & bottleneck triggers.
                   </p>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 # 🛡️ Referral Guardian
 
-> **AI-Powered Special Education Referral Continuity & Statutory IDEA Compliance Platform**  
+> **AI-Powered Inclusive Education Referral Continuity & Statutory Assessment Compliance Platform (India)**  
 > *Built with ❤️ by Team **Meridian*** 🚀
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -23,66 +23,79 @@
 ---
 
 ## 📖 Table of Contents
-1. [Overview & The Core Problem](#-overview--the-core-problem)
-2. [What is IDEA & The 20-Day Statutory Deadline?](#-what-is-idea--the-20-day-statutory-deadline)
-3. [How Referral Guardian Solves It](#-how-referral-guardian-solves-it)
-4. [System Architecture & Data Flow](#-system-architecture--data-flow)
-5. [The LangGraph Agentic Lifecycle](#-the-langgraph-agentic-lifecycle)
-6. [Key Features & Platform Modules](#-key-features--platform-modules)
-7. [Getting Started (Local Installation)](#-getting-started-local-installation)
-8. [Interactive Demo Walkthrough Guide](#-interactive-demo-walkthrough-guide)
-9. [REST API Documentation](#-rest-api-documentation)
-10. [License](#-license)
+1. [Overview & The Core Challenge in India](#-overview--the-core-challenge-in-india)
+2. [Indian Regulatory Framework: RPwD Act 2016 & NEP 2020](#-indian-regulatory-framework-rpwd-act-2016--nep-2020)
+3. [The 20-Day Statutory Assessment Timeline](#-the-20-day-statutory-assessment-timeline)
+4. [How Referral Guardian Solves It](#-how-referral-guardian-solves-it)
+5. [System Architecture & Data Flow](#-system-architecture--data-flow)
+6. [The LangGraph Agentic Lifecycle](#-the-langgraph-agentic-lifecycle)
+7. [Key Features & Platform Modules](#-key-features--platform-modules)
+8. [Getting Started (Local Installation)](#-getting-started-local-installation)
+9. [Interactive Demo Walkthrough Guide](#-interactive-demo-walkthrough-guide)
+10. [REST API Documentation](#-rest-api-documentation)
+11. [License](#-license)
 
 ---
 
-## 🌟 Overview & The Core Problem
+## 🌟 Overview & The Core Challenge in India
 
-When a teacher or parent notices a child struggling with speech, learning, or behavioral challenges, they submit a **Special Education Referral**.
+In schools across India (CBSE, ICSE, and State Boards), when a teacher, parent, or counselor identifies a child experiencing learning difficulties, speech delays, autism spectrum traits, or behavioral challenges, they initiate an **Inclusive Education / Special Needs Referral**.
 
-In public school districts across the country, **Special Education (SPED) Referral Coordinators** must manage **40 to 80 student evaluations simultaneously** across multiple campuses, clinics, and outside contractors. 
+**Special Educators, Resource Teachers, and Inclusive Education Coordinators** in Indian schools must coordinate clinical evaluations across multiple stakeholders:
+* Rehabilitation Council of India (**RCI**)-certified Clinical Psychologists
+* Speech-Language Pathologists & Audiologists
+* Occupational Therapists
+* Pediatric Neurologists & District Early Intervention Centres (**DEICs** / **CRCs**)
 
-### ⚠️ The Problem: Silent Referral Stalls
-The referral process relies on multiple external handoffs: parental consent forms, doctor reports, speech-language evaluations, and psychological testing. If an external doctor forgets to reply, a consent form gets lost in an email chain, or a clinic is booked up:
-* **The referral stalls silently** with no alerts.
-* **The child loses months** of speech therapy, behavioral assistance, or dyslexia accommodations during critical early developmental windows.
-* **School districts face severe legal liability** ($20k–$100k+ lawsuits and state compliance sanctions) for missing federal deadlines.
+### ⚠️ The Problem: Silent Referral Drop-Offs
+Referrals involve multiple fragmented handoffs: parental consent, clinical screening, developmental history, and diagnostic testing. If an external therapist is unavailable, an assessment report is delayed, or a consent form is missing:
+* **The referral silently stalls** with zero tracking.
+* **The child loses months** of early intervention, individualized curriculum accommodations, and board examination dispensations (e.g., CBSE scribe/extra time concessions).
+* **Schools risk non-compliance** with state education directives and disability rights mandates.
 
-### 📋 Today's Broken Reality
-Coordinators manually track dates using chaotic spreadsheets, paper folders, and calendar reminders—reacting only *after* a legal deadline has already been breached.
+### 📋 Today's Reality in Indian Schools
+Coordinators manually track cases on spreadsheets and paper registers, reacting only *after* severe delays have already occurred.
 
 ---
 
-## ⚖️ What is IDEA & The 20-Day Statutory Deadline?
+## ⚖️ Indian Regulatory Framework: RPwD Act 2016 & NEP 2020
 
-* **IDEA (Individuals with Disabilities Education Act)**: A landmark U.S. federal civil rights law guaranteeing all children with disabilities access to a *Free Appropriate Public Education (FAPE)* tailored to their individual needs through an **Individualized Education Program (IEP)**.
-* **The 20-Day Statutory Mandate**: Under state and federal administrative codes (e.g. *NJ Admin Code 6A:14*, *California Ed Code*), school districts have a strict **20-day statutory window** from the date of initial referral receipt to:
-  1. Review screening data and obtain written parental consent.
-  2. Coordinate with clinical specialists (Speech Therapists, Psychologists, OT/PT).
-  3. Conduct assessments and convene the multidisciplinary **IEP Determination Meeting** with parents.
+* **Rights of Persons with Disabilities (RPwD) Act, 2016 (Chapter III — Education)**: Mandates that all educational institutions funded or recognized by the government provide inclusive education to children with disabilities without discrimination, ensuring early identification, specialized support, and reasonable accommodation across **21 specified disabilities**.
+* **National Education Policy (NEP) 2020**: Emphasizes Equitable and Inclusive Education (Section 6), requiring schools to establish early childhood screening, resource centers, and individualized educational support plans.
+* **Right to Education (RTE) Act, 2009**: Guarantees the fundamental right to free and compulsory education for all children with special needs in inclusive mainstream environments.
 
-If 20 days pass without progress, the school is in **statutory breach**.
+---
+
+## ⏱️ The 20-Day Statutory Assessment Timeline
+
+Under inclusive education administrative directives (e.g., Samagra Shiksha Inclusive Education Framework, CBSE Inclusive Education Guidelines), schools follow a mandatory **20-day assessment & determination timeline** upon referral intake:
+
+1. **Days 1–5 (Intake & Screening)**: Document developmental history, review classroom screening data, and obtain written parental consent.
+2. **Days 6–15 (Clinical Coordination)**: Connect with assigned RCI-licensed specialists (Speech Therapists, Psychologists, OTs) and complete diagnostic testing.
+3. **Days 16–20 (Determination & IEP Plan)**: Finalize the diagnostic evaluation, convene the case conference with parents, and formulate the child's **Individualized Education Plan (IEP)** or Support Plan.
+
+If 20 days pass without diagnostic completion, the case is flagged as **statutory overdue (`APPOINTMENT_DELAYED`)**.
 
 ---
 
 ## 💡 How Referral Guardian Solves It
 
-**Referral Guardian** is an active, closed-loop AI continuity platform that monitors referrals in real time, catches bottlenecks before deadlines pass, and coordinates human-approved unblocking actions.
+**Referral Guardian** is an active, closed-loop AI continuity platform that monitors referrals in real time, catches bottlenecks before statutory deadlines pass, and coordinates human-approved unblocking actions.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Coordinator as SPED Coordinator
+    actor Coordinator as Inclusive Education Coordinator
     participant Guardian as Referral Guardian Agent
-    participant Doctor as Clinical Specialist
+    participant Doctor as Clinical Specialist (RCI Licensed)
     participant DB as SQLite / Supabase
 
-    Coordinator->>Guardian: Case intake created (Day 0)
+    Coordinator->>Guardian: Case intake registered (Day 0)
     Note over Coordinator,Guardian: Time-Warp: Referral reaches Day 21 (Overdue)
     Guardian->>Guardian: Deterministic Rule: Flags APPOINTMENT_DELAYED
     Guardian->>Coordinator: AI Proposes Action: "CONTACT_SPECIALIST" (95% Conf)
     Coordinator->>Guardian: Clicks "APPROVE ACTION"
-    Guardian->>DB: Logs outreach milestone & sends notice
+    Guardian->>DB: Logs outreach milestone & sends follow-up
     Doctor->>Guardian: Logs Diagnostic Findings in /educator Portal
     Guardian->>DB: Clears Bottleneck, Sets Status = ACTIVE
     Guardian->>Coordinator: Automatically RESETS Statutory Timer back to Day 0
@@ -92,14 +105,14 @@ sequenceDiagram
 
 ## 🏗️ System Architecture & Data Flow
 
-Referral Guardian uses a modern, decoupled architecture separating **deterministic statutory logic** from **LLM operational reasoning** to guarantee safety and compliance.
+Referral Guardian separates **deterministic statutory rules** from **LLM operational reasoning** to ensure reliability and full compliance.
 
 ```mermaid
 flowchart TB
     subgraph Frontend [Next.js 16 Client Layer]
         A[Coordinator Dashboard]
         B[Case Detail & HITL Console]
-        C[Special Educator Portal /educator]
+        C[Specialist Diagnostic Portal /educator]
         D[Statutory 20-Day Simulator]
     end
 
@@ -138,7 +151,7 @@ The core intelligence of Referral Guardian is implemented as a cyclic state grap
 ```mermaid
 flowchart TD
     START([Start Evaluation]) --> OBSERVE[1. Observe Case State & Full Timeline]
-    OBSERVE --> DETECT{2. Detect Bottleneck<br/>Deterministic Python Rules}
+    OBSERVE --> DETECT{2. Detect Bottleneck<br/>Deterministic Rules}
     
     DETECT -->|No Bottleneck| NO_BOTTLENECK[Confirm Case Active & On Track] --> END([End Run])
     
@@ -155,10 +168,10 @@ flowchart TD
 ```
 
 ### **The 6 Graph Nodes Explained:**
-1. **`Observe`**: Fetches structured case attributes, specialist availability, and complete chronological timeline history.
-2. **`Detect Bottleneck`**: Executes 100% deterministic Python rules (no LLM hallucinations) to flag overdue statutory deadlines (`APPOINTMENT_DELAYED`), missing consent, specialist unresponsiveness, or repeated failures ($\ge 3$ attempts).
-3. **`Reason`**: Invokes the LLM to analyze the timeline and choose the single best operational action from a safe whitelist (`ALLOWED_ACTIONS`) along with reasoning and evidence.
-4. **`Human Approval (Interrupt)`**: Uses LangGraph `interrupt()` to freeze execution. The human coordinator can **Approve**, **Modify** (override the action), or **Reject**.
+1. **`Observe`**: Fetches structured student referral attributes, specialist availability, and chronological milestones.
+2. **`Detect Bottleneck`**: Executes 100% deterministic rules (no hallucinations) to flag overdue timelines (`APPOINTMENT_DELAYED` at Day 20+), missing documents, specialist unresponsiveness, or repeated failures ($\ge 3$ attempts).
+3. **`Reason`**: Invokes the LLM to analyze the timeline and choose the single best operational action from a safe whitelist (`ALLOWED_ACTIONS`) with clear reasoning and evidence.
+4. **`Human Approval (Interrupt)`**: Uses LangGraph `interrupt()` to freeze execution. The school coordinator can **Approve**, **Modify** (override the action), or **Reject**.
 5. **`Execute`**: Runs the approved action via a dedicated controlled executor (e.g. contacting specialists, scheduling follow-ups, requesting documents).
 6. **`Verify`**: Verifies that the side-effect succeeded and logs an immutable milestone to the case timeline.
 
@@ -167,25 +180,25 @@ flowchart TD
 ## ✨ Key Features & Platform Modules
 
 ### 1. ⏱️ Deterministic Statutory Compliance Sentry
-* **100% Deterministic**: Legal deadlines cannot rely on stochastic LLM outputs. Referral Guardian calculates days open and flags statutory breaches with absolute precision.
+* **100% Deterministic**: Calculates days open and flags statutory assessment breaches with precision.
 * **Bottleneck Taxonomy**:
-  * `APPOINTMENT_DELAYED`: Case age $\ge 20$ days without completed evaluation.
-  * `NO_SPECIALIST_RESPONSE`: Specialist contacted but no diagnostic notes received.
-  * `SPECIALIST_UNAVAILABLE`: Assigned specialist is on leave or unavailable.
+  * `APPOINTMENT_DELAYED`: Case age $\ge 20$ days without completed assessment.
+  * `NO_SPECIALIST_RESPONSE`: Specialist contacted but no assessment notes received.
+  * `SPECIALIST_UNAVAILABLE`: Assigned specialist is on leave or fully booked.
   * `MISSING_DOCUMENT`: Mandatory parent consent or screening records pending.
-  * `REPEATED_FAILURE`: 3 or more failed outreach attempts (escalates to director).
+  * `REPEATED_FAILURE`: 3 or more failed outreach attempts (escalates to School Management / Principal).
 
 ### 2. 🤖 Human-in-the-Loop (HITL) Safety Controls
-* **No Unsupervised AI**: Special education law strictly requires human oversight. The agent cannot alter student records or reassign clinicians without coordinator consent.
+* **No Unsupervised AI**: Special education decisions require professional human oversight. The agent cannot alter student records or reassign clinicians without coordinator approval.
 * **Interactive Controls**: Coordinators can:
   * **Approve**: Execute the AI-recommended action in one click.
-  * **Modify**: Select a replacement action from the dropdown with custom coordinator notes.
-  * **Reject**: Dismiss the recommendation if circumstances changed out-of-band.
+  * **Modify**: Select a replacement action from the dropdown with custom notes.
+  * **Reject**: Dismiss the recommendation if resolved offline.
 
-### 3. 🩺 Special Educator Diagnostic Portal (`/educator`)
-* **Dedicated Specialist View**: Specialists log in, review assigned cases, and toggle their clinical availability (`AVAILABLE` / `UNAVAILABLE`).
-* **Diagnostic Submission**: Specialists submit evaluation findings directly into the case record.
-* **Auto-Reset Recovery**: Submitting diagnostic findings **automatically clears all bottlenecks, sets status to `ACTIVE`, and resets the 20-day timer back to Day 0**.
+### 3. 🩺 Special Educator & Specialist Portal (`/educator`)
+* **Dedicated Specialist View**: Therapists and psychologists log in, review assigned referrals, and toggle clinical availability (`AVAILABLE` / `UNAVAILABLE`).
+* **Diagnostic Submission**: Specialists submit assessment findings directly into the student's case record.
+* **Auto-Reset Recovery**: Submitting diagnostic findings **automatically clears bottlenecks, sets status to `ACTIVE`, and resets the 20-day timer back to Day 0**.
 
 ### 4. ⚡ Statutory 20-Day Timeline Simulator (Time-Warp Engine)
 An interactive simulator embedded in the case header for live testing and demonstration:
@@ -262,8 +275,8 @@ Follow these steps for a complete live demonstration:
    * Create a student (e.g. `stu-rit-5001`) with referral type *Speech-Language Evaluation*.
 2. **Simulate 20-Day Statutory Breach**:
    * Open the newly created case detail page.
-   * In the **Statutory 20-Day Timeline Simulator**, click **`+21 Days (Overdue)`**.
-   * Notice the statutory progress bar turns red and the case is flagged **STUCK** with bottleneck `APPOINTMENT_DELAYED`.
+   * In the **Statutory 20-Day Assessment Timeline Simulator**, click **`+21 Days (Overdue)`**.
+   * Notice the progress bar turns red and the case is flagged **STUCK** with bottleneck `APPOINTMENT_DELAYED`.
 3. **Run AI Agent Evaluation**:
    * Click **"Run Referral Guardian AI"**.
    * LangGraph analyzes the case and pauses at the approval node, recommending **`CONTACT_SPECIALIST`** with 95% confidence.
@@ -303,5 +316,5 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by Team <b>Meridian</b> for seamless Special Education continuity.</sub>
+  <sub>Built with ❤️ by Team <b>Meridian</b> for seamless Inclusive Education continuity in India.</sub>
 </div>

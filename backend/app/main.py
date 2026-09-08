@@ -258,7 +258,7 @@ def fast_forward_case(
     body: FastForwardRequest,
     db: Session = Depends(get_db),
 ):
-    """Fast-forward (or reset) the case's timeline to simulate IDEA statutory compliance (20-day rule)."""
+    """Fast-forward (or reset) the case's timeline to simulate statutory 20-day assessment compliance."""
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -275,7 +275,7 @@ def fast_forward_case(
             db,
             case_id,
             "APPOINTMENT_DELAYED",
-            f"Statutory 20-day timeline exceeded! Referral has reached Day {body.days} without finalized IEP determination.",
+            f"Statutory 20-day timeline exceeded! Referral has reached Day {body.days} without finalized diagnostic assessment and IEP determination.",
         )
     else:
         if body.days == 0:

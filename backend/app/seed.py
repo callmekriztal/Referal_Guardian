@@ -3,7 +3,7 @@ Database Seeder for Referral Guardian Demo Scenarios.
 
 Populates realistic, production-grade Special Education referral cases,
 timeline events, documents, communications, and specialist rosters to
-simulate realistic time delays, IDEA compliance tracking, and bottleneck resolution.
+simulate realistic time delays, statutory assessment compliance tracking, and bottleneck resolution.
 """
 import datetime
 from datetime import timedelta
@@ -139,7 +139,7 @@ def seed_database():
             coordinator_id=u1.id,
             assigned_specialist_id=spec4.id,
             current_bottleneck="REPEATED_FAILURE",
-            coordinator_notes="3 outreach attempts to specialist partner went unanswered. Legal 60-day IDEA clock at risk.",
+            coordinator_notes="3 outreach attempts to specialist partner went unanswered. Statutory assessment timeline at risk.",
             created_date=now - timedelta(days=42),
             last_activity=now - timedelta(days=1),
             followup_attempts=3,
