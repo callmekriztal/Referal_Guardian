@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { isUserRole, portalPath, useAuth, UserRole } from "@/lib/AuthContext";
-import { Lock, Mail, ShieldAlert, ArrowRight, Sparkles, GraduationCap, ClipboardList } from "lucide-react";
+import { isUserRole, portalPath, useAuth, UserRole, isStudentCoordinatorEmail, getEnforcedRole } from "@/lib/AuthContext";
+import { Lock, Mail, ShieldAlert, ArrowRight, Sparkles, GraduationCap, ClipboardList, CheckCircle2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,9 +22,11 @@ export default function LoginPage() {
     router.replace(portalPath(profile.role));
   }, [authLoading, profile, router]);
 
+  const isRitStudent = isStudentCoordinatorEmail(email);
+
   const handleQuickDemo = (demoRole: UserRole) => {
     if (demoRole === "coordinator") {
-      setDemoUser("coordinator", "dr.smith@school.org", "Dr. Jane Smith (Coordinator)");
+      setDemoUser("coordinator", "24br02024@rit.ac.in", "Student Coordinator (24br02024@rit.ac.in)");
     } else {
       setDemoUser("special_educator", "dr.vance@clinic.org", "Dr. Marcus Vance (Special Educator)");
     }
@@ -37,6 +39,8 @@ export default function LoginPage() {
 
     setLoading(true);
     setErrorMsg(null);
+
+    const effectiveRole = getEnforcedRole(email, role);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -51,11 +55,11 @@ export default function LoginPage() {
 
       if (data?.user) {
         const metaRole = data.user.user_metadata?.role;
-        if (!isUserRole(metaRole)) {
-          await supabase.auth.updateUser({ data: { role } });
+        const targetRole = getEnforcedRole(email, isUserRole(metaRole) ? metaRole : effectiveRole);
+        if (!isUserRole(metaRole) || metaRole !== targetRole) {
+          await supabase.auth.updateUser({ data: { role: targetRole } });
         }
-        const userRole = isUserRole(metaRole) ? metaRole : role;
-        router.push(portalPath(userRole));
+        router.push(portalPath(targetRole));
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "An unexpected error occurred during sign in.");

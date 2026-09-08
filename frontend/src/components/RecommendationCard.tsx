@@ -23,6 +23,7 @@ interface RecommendationCardProps {
     description: string;
     severity?: string;
   } | null;
+  isCoordinator?: boolean;
   onApprove: () => Promise<void>;
   onReject: (reason?: string) => Promise<void>;
   onModify: (action: string, reason?: string) => Promise<void>;
@@ -41,6 +42,7 @@ const ALLOWED_ACTIONS = [
 export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   recommendation,
   bottleneck,
+  isCoordinator = true,
   onApprove,
   onReject,
   onModify,
@@ -256,7 +258,11 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
         ) : (
           <div className="text-center py-4">
             <p className="text-sm text-gray-600">
-              Bottleneck identified. Click <strong>Run Guardian Agent</strong> to generate an AI recommendation.
+              {isCoordinator ? (
+                <>Bottleneck identified. Click <strong>Run Guardian Agent</strong> to generate an AI recommendation.</>
+              ) : (
+                <>Bottleneck identified. Agent evaluations and approvals are coordinated by the case coordinator.</>
+              )}
             </p>
           </div>
         )}

@@ -51,10 +51,16 @@ _MOCK_RECOMMENDATIONS: dict[str, dict[str, Any]] = {
         "confidence": 0.88,
     },
     "APPOINTMENT_DELAYED": {
-        "action": "SCHEDULE_FOLLOWUP",
-        "reason": "The appointment is overdue. A follow-up should be scheduled.",
-        "evidence": ["Appointment scheduled_date has passed", "Status still REQUESTED"],
-        "confidence": 0.85,
+        "action": "CONTACT_SPECIALIST",
+        "reason": (
+            "Statutory 20-day evaluation deadline exceeded. Immediate outreach to the assigned specialist is required "
+            "to request their diagnostic assessment submission and restore timeline compliance."
+        ),
+        "evidence": [
+            "Statutory 20-day evaluation window exceeded",
+            "Specialist diagnostic assessment findings pending",
+        ],
+        "confidence": 0.95,
     },
     "REPEATED_FAILURE": {
         "action": "ESCALATE_CASE",

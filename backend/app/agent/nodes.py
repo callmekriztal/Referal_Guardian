@@ -113,7 +113,7 @@ def bottleneck_node(state: ReferralState) -> dict[str, Any]:
             )
         else:
             record_event(db, case_id, "NO_BOTTLENECK_DETECTED",
-                         "Agent found no bottleneck.")
+                         "Agent confirmed case is on track with no pending bottlenecks.")
     finally:
         db.close()
 

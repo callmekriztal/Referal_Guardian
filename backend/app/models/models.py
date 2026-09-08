@@ -47,6 +47,7 @@ class Case(Base):
     status = Column(String, default="NEW")              # NEW, ACTIVE, STUCK, RESOLVED, ESCALATED
     coordinator_id = Column(String, ForeignKey("users.id"), nullable=True)
     assigned_specialist_id = Column(String, ForeignKey("specialists.id"), nullable=True)
+    assigned_specialist_email = Column(String, nullable=True)
     current_bottleneck = Column(String, nullable=True)
     current_responsible_person = Column(String, nullable=True)
     coordinator_notes = Column(Text, nullable=True)
@@ -114,6 +115,7 @@ class Specialist(Base):
 
     id = Column(String, primary_key=True, default=_uuid)
     name = Column(String, nullable=False)
+    email = Column(String, nullable=True)
     specialization = Column(String, nullable=False)
     location = Column(String, nullable=True)
     availability_status = Column(String, default="AVAILABLE")   # AVAILABLE, UNAVAILABLE
@@ -245,7 +247,7 @@ class AgentRun(Base):
 
     id = Column(String, primary_key=True, default=_uuid)
     case_id = Column(String, ForeignKey("cases.id"), nullable=False)
-    thread_id = Column(String, nullable=False, unique=True)   # LangGraph checkpointer thread_id
+    thread_id = Column(String, nullable=False)                # LangGraph checkpointer thread_id
     status = Column(String, default="RUNNING")                # RUNNING, WAITING_APPROVAL, COMPLETED, FAILED
     started_at = Column(DateTime, default=datetime.datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)

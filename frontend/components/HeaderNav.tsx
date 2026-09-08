@@ -12,7 +12,7 @@ export function HeaderNav() {
   const handlePortalClick = (targetRole: "coordinator" | "special_educator") => {
     if (!profile?.isDemo) return;
     if (targetRole === "coordinator") {
-      setDemoUser("coordinator", "dr.smith@school.org", "Dr. Jane Smith (Coordinator)");
+      setDemoUser("coordinator", "24br02024@rit.ac.in", "Student Coordinator (24br02024@rit.ac.in)");
     } else {
       setDemoUser("special_educator", "dr.vance@clinic.org", "Dr. Marcus Vance (Special Educator)");
     }

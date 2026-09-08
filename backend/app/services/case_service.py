@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.models import (
@@ -33,6 +34,8 @@ from app.services.supabase_client import (
     supabase_get_case,
     supabase_get_timeline,
     supabase_insert,
+    supabase_update,
+    supabase_delete,
 )
 
 logger = logging.getLogger(__name__)
@@ -115,7 +118,12 @@ def _case_to_dict(case: Case) -> dict[str, Any]:
 
 
 def _get_specialist_status(case: Case) -> str:
-    """Derive specialist status from the most recent appointment."""
+    """Derive specialist status from assigned specialist or the most recent appointment."""
+    if case.assigned_specialist:
+        if not case.assigned_specialist.active or case.assigned_specialist.availability_status == "UNAVAILABLE":
+            return "UNAVAILABLE"
+        return case.assigned_specialist.availability_status or "AVAILABLE"
+
     if not case.appointments:
         return "NONE"
     latest = sorted(case.appointments, key=lambda a: a.scheduled_date or datetime.min)[-1]
@@ -131,13 +139,17 @@ def _has_missing_documents(case: Case) -> bool:
 
 
 def _is_waiting_for_specialist(case: Case) -> bool:
-    """True if there has been a CONTACT_SPECIALIST event without a follow-up response."""
+    """True if there has been a CONTACT_SPECIALIST event without a follow-up response or diagnostic submission."""
+    if bool(case.diagnostic_details and case.diagnostic_details.strip()):
+        return False
+
     event_types = [e.event_type for e in case.events]
-    return (
-        "SPECIALIST_CONTACTED" in event_types
-        and "SPECIALIST_RESPONDED" not in event_types
-        and "APPOINTMENT_CONFIRMED" not in event_types
+    has_contacted = "SPECIALIST_CONTACTED" in event_types
+    has_responded = any(
+        et in event_types
+        for et in ("SPECIALIST_RESPONDED", "DIAGNOSTIC_EVALUATION_LOGGED", "APPOINTMENT_CONFIRMED")
     )
+    return has_contacted and not has_responded
 
 
 def _is_appointment_delayed(case: Case) -> bool:
@@ -278,13 +290,14 @@ def get_all_specialists(db: Session) -> list[dict[str, Any]]:
 
 def get_or_create_agent_run(db: Session, case_id: str) -> AgentRun:
     """Return the active agent run for a case, or create one."""
-    thread_id = f"case-{case_id}"
+    import uuid
     run = (
         db.query(AgentRun)
         .filter(
             AgentRun.case_id == case_id,
             AgentRun.status.in_(["RUNNING", "WAITING_APPROVAL"]),
         )
+        .order_by(AgentRun.started_at.desc())
         .first()
     )
     if run:
@@ -292,7 +305,7 @@ def get_or_create_agent_run(db: Session, case_id: str) -> AgentRun:
 
     run = AgentRun(
         case_id=case_id,
-        thread_id=thread_id,
+        thread_id=f"case-{case_id}-{uuid.uuid4().hex[:8]}",
         status="RUNNING",
     )
     db.add(run)
@@ -365,6 +378,22 @@ def has_pending_recommendation(db: Session, case_id: str) -> bool:
 # Case CRUD operations
 # ---------------------------------------------------------------------------
 
+import re
+
+def is_student_coordinator_email(email: Optional[str]) -> bool:
+    """Check if email belongs to a student coordinator (24brXXXXX@rit.ac.in)."""
+    if not email:
+        return False
+    return bool(re.match(r"^24br[a-zA-Z0-9]{5}@rit\.ac\.in$", email.strip(), re.IGNORECASE))
+
+
+def enforce_user_rbac(email_or_username: Optional[str], requested_role: str = "coordinator") -> str:
+    """Hardcode RBAC rule: 24brXXXXX@rit.ac.in can ONLY be a student coordinator."""
+    if is_student_coordinator_email(email_or_username):
+        return "coordinator"
+    return requested_role
+
+
 def create_case(
     db: Session,
     child_identifier: str,
@@ -372,17 +401,45 @@ def create_case(
     status: str = "NEW",
     coordinator_id: Optional[str] = None,
     assigned_specialist_id: Optional[str] = None,
+    assigned_specialist_email: Optional[str] = None,
     current_bottleneck: Optional[str] = None,
     coordinator_notes: Optional[str] = None,
     initial_event_details: Optional[str] = None,
+    custom_id: Optional[str] = None,
 ) -> Case:
-    """Create a new referral case and initial timeline event."""
+    """Create a new referral case using human-readable ID (e.g. stu-schoolname-5001) instead of random UUID."""
+    base_id = (custom_id or child_identifier or "").strip()
+    if not base_id:
+        base_id = f"stu-case-{_uuid()[:6]}"
+
+    case_id = base_id
+    counter = 1
+    while db.query(Case).filter(Case.id == case_id).first():
+        case_id = f"{base_id}-{counter}"
+        counter += 1
+
+    clean_email = assigned_specialist_email.strip().lower() if assigned_specialist_email else None
+
+    # If email provided without specialist ID, try to match existing specialist
+    if clean_email and not assigned_specialist_id:
+        matched_spec = db.query(Specialist).filter(func.lower(Specialist.email) == clean_email).first()
+        if matched_spec:
+            assigned_specialist_id = matched_spec.id
+
+    # If specialist ID provided without email, backfill from specialist record
+    if assigned_specialist_id and not clean_email:
+        spec_obj = db.query(Specialist).filter(Specialist.id == assigned_specialist_id).first()
+        if spec_obj and spec_obj.email:
+            clean_email = spec_obj.email.strip().lower()
+
     new_case = Case(
+        id=case_id,
         child_identifier=child_identifier,
         referral_type=referral_type,
         status=status,
         coordinator_id=coordinator_id,
         assigned_specialist_id=assigned_specialist_id,
+        assigned_specialist_email=clean_email,
         current_bottleneck=current_bottleneck,
         coordinator_notes=coordinator_notes,
     )
@@ -391,6 +448,19 @@ def create_case(
     db.refresh(new_case)
 
     # Initial event
+    # Sync to Supabase first so FK constraints for case_events pass
+    supabase_insert("cases", {
+        "id": new_case.id,
+        "child_identifier": child_identifier,
+        "referral_type": referral_type,
+        "status": status,
+        "coordinator_id": coordinator_id,
+        "assigned_specialist_id": assigned_specialist_id,
+        "assigned_specialist_email": clean_email,
+        "current_bottleneck": current_bottleneck,
+        "coordinator_notes": coordinator_notes,
+    })
+
     evt_text = initial_event_details or f"Referral created for {child_identifier} ({referral_type})."
     record_event(db, new_case.id, "REFERRAL_CREATED", evt_text)
 
@@ -404,19 +474,8 @@ def create_case(
         )
         db.add(appt)
         db.commit()
-        record_event(db, new_case.id, "SPECIALIST_CONTACTED", "Initial outreach sent to assigned specialist.")
-
-    # Sync to Supabase
-    supabase_insert("cases", {
-        "id": new_case.id,
-        "child_identifier": child_identifier,
-        "referral_type": referral_type,
-        "status": status,
-        "coordinator_id": coordinator_id,
-        "assigned_specialist_id": assigned_specialist_id,
-        "current_bottleneck": current_bottleneck,
-        "coordinator_notes": coordinator_notes,
-    })
+        contact_note = f"Initial outreach sent to assigned specialist ({clean_email})." if clean_email else "Initial outreach sent to assigned specialist."
+        record_event(db, new_case.id, "SPECIALIST_CONTACTED", contact_note)
 
     return new_case
 
@@ -523,17 +582,42 @@ def update_diagnostic_details(
     diagnostic_details: str,
     educator_name: Optional[str] = None,
 ) -> Optional[dict[str, Any]]:
-    """Save diagnostic evaluation notes and add a timeline event."""
+    """Save diagnostic evaluation notes, clear specialist bottleneck, transition status to ACTIVE, and add timeline events."""
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         return None
 
     case.diagnostic_details = diagnostic_details
+    case.current_bottleneck = None
+    case.status = "ACTIVE"
+    # Revert timeline to default (Day 0) now that specialist diagnostic evaluation is received
+    case.created_date = datetime.utcnow()
     case.last_activity = datetime.utcnow()
+
+    # Dismiss/resolve any pending recommendations since specialist has responded
+    from app.models.models import AgentRecommendation
+    db.query(AgentRecommendation).filter(
+        AgentRecommendation.case_id == case_id,
+        AgentRecommendation.status == "PENDING",
+    ).update({"status": "RESOLVED"})
+
     db.commit()
     db.refresh(case)
 
+    # Sync to Supabase
+    supabase_update("cases", case_id, {
+        "diagnostic_details": diagnostic_details,
+        "current_bottleneck": case.current_bottleneck,
+        "status": case.status,
+    })
+
     name_str = f" by {educator_name}" if educator_name else ""
+    record_event(
+        db,
+        case_id,
+        "SPECIALIST_RESPONDED",
+        f"Clinical specialist response recorded{name_str} with diagnostic evaluation findings."
+    )
     record_event(
         db,
         case_id,

@@ -93,3 +93,20 @@ class TestRepeatedFailure:
         minimal_case["specialist_status"] = "UNAVAILABLE"
         result = detect_bottleneck(minimal_case, sample_timeline)
         assert result["type"] == BOTTLENECK_REPEATED_FAILURE
+
+    def test_diagnostic_details_clears_specialist_bottleneck(self, minimal_case):
+        """When specialist submits diagnostic findings, bottleneck should be None."""
+        case = {
+            "status": "ACTIVE",
+            "specialist_status": "AVAILABLE",
+            "diagnostic_details": "Diagnosed with mild articulation delay.",
+            "waiting_for_specialist": True,
+            "current_bottleneck": "NO_SPECIALIST_RESPONSE",
+        }
+        timeline = [
+            {"event_type": "SPECIALIST_CONTACTED"},
+            {"event_type": "DIAGNOSTIC_EVALUATION_LOGGED"},
+        ]
+        result = detect_bottleneck(case, timeline)
+        assert result is None
+

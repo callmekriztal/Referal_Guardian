@@ -28,10 +28,14 @@ def detect_bottleneck(
     Priority order: REPEATED_FAILURE > SPECIALIST_UNAVAILABLE > MISSING_DOCUMENT
     > NO_SPECIALIST_RESPONSE > APPOINTMENT_DELAYED
     """
+    has_specialist_response = bool(case.get("diagnostic_details") and str(case.get("diagnostic_details")).strip()) or any(
+        e.get("event_type") in ("DIAGNOSTIC_EVALUATION_LOGGED", "SPECIALIST_RESPONDED")
+        for e in timeline
+    )
 
     # --- Repeated failure (check first — highest priority for escalation) ---
     failed_attempts = _count_failed_attempts(case, timeline)
-    if failed_attempts >= REPEATED_FAILURE_THRESHOLD or case.get("current_bottleneck") == BOTTLENECK_REPEATED_FAILURE:
+    if (failed_attempts >= REPEATED_FAILURE_THRESHOLD or case.get("current_bottleneck") == BOTTLENECK_REPEATED_FAILURE) and not has_specialist_response:
         return {
             "type": BOTTLENECK_REPEATED_FAILURE,
             "description": (
@@ -43,11 +47,11 @@ def detect_bottleneck(
         }
 
     # --- Specialist unavailable ---
-    if (
+    is_spec_unavailable = (
         case.get("specialist_status") == "UNAVAILABLE"
-        or case.get("current_bottleneck") == BOTTLENECK_SPECIALIST_UNAVAILABLE
-        or any(e.get("event_type") == "SPECIALIST_UNAVAILABLE" for e in timeline)
-    ):
+        or (case.get("current_bottleneck") == BOTTLENECK_SPECIALIST_UNAVAILABLE and not has_specialist_response)
+    )
+    if is_spec_unavailable and not has_specialist_response:
         return {
             "type": BOTTLENECK_SPECIALIST_UNAVAILABLE,
             "description": "The assigned specialist is marked as unavailable.",
@@ -63,18 +67,24 @@ def detect_bottleneck(
         }
 
     # --- No specialist response ---
-    if case.get("waiting_for_specialist") or case.get("current_bottleneck") == BOTTLENECK_NO_SPECIALIST_RESPONSE:
-        return {
-            "type": BOTTLENECK_NO_SPECIALIST_RESPONSE,
-            "description": "The specialist has not responded to the referral.",
-            "severity": "HIGH",
-        }
+    if not has_specialist_response:
+        if case.get("waiting_for_specialist") or case.get("current_bottleneck") == BOTTLENECK_NO_SPECIALIST_RESPONSE:
+            return {
+                "type": BOTTLENECK_NO_SPECIALIST_RESPONSE,
+                "description": "The specialist has not responded to the referral.",
+                "severity": "HIGH",
+            }
 
     # --- Appointment delayed ---
-    if case.get("appointment_delayed") or case.get("current_bottleneck") == BOTTLENECK_APPOINTMENT_DELAYED:
+    days_open = case.get("days_open", 0)
+    if (
+        case.get("appointment_delayed")
+        or case.get("current_bottleneck") == BOTTLENECK_APPOINTMENT_DELAYED
+        or (days_open >= 20 and case.get("status") not in ("RESOLVED", "ESCALATED"))
+    ):
         return {
             "type": BOTTLENECK_APPOINTMENT_DELAYED,
-            "description": "A scheduled appointment is overdue.",
+            "description": f"Statutory 20-day evaluation window exceeded ({days_open} days open) without completed IEP determination.",
             "severity": "HIGH",
         }
 

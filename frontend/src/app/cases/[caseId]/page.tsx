@@ -18,6 +18,7 @@ import {
   RecommendationCard,
   Recommendation,
 } from "@/components/RecommendationCard";
+import { useAuth } from "@/lib/AuthContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -68,6 +69,8 @@ export default function CaseDetailPage({
 }) {
   const resolvedParams = use(params);
   const caseId = resolvedParams.caseId;
+  const { profile } = useAuth();
+  const isCoordinator = !profile || profile.role === "coordinator";
 
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
   const [agentState, setAgentState] = useState<AgentStateResponse | null>(null);
@@ -271,14 +274,16 @@ export default function CaseDetailPage({
                 className={`w-4 h-4 ${agentLoading ? "animate-spin" : ""}`}
               />
             </button>
-            <button
-              onClick={handleRunAgent}
-              disabled={agentLoading}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
-            >
-              <Sparkles className="w-4 h-4 text-indigo-200" />
-              {agentLoading ? "Running Guardian..." : "Run Guardian Agent"}
-            </button>
+            {isCoordinator && (
+              <button
+                onClick={handleRunAgent}
+                disabled={agentLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-200" />
+                {agentLoading ? "Running Guardian..." : "Run Guardian Agent"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -383,22 +388,25 @@ export default function CaseDetailPage({
           </div>
         )}
 
-        {/* Main Grid: Recommendation on Left, Timeline on Right */}
+        {/* Main Grid: Recommendation on Left (Coordinator only), Timeline on Right (Full width for Specialist) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: AI Recommendation */}
-          <div className="lg:col-span-5 space-y-6">
-            <RecommendationCard
-              recommendation={activeRecommendation}
-              bottleneck={activeBottleneck}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onModify={handleModify}
-              isLoading={agentLoading}
-            />
-          </div>
+          {isCoordinator && (
+            <div className="lg:col-span-5 space-y-6">
+              <RecommendationCard
+                recommendation={activeRecommendation}
+                bottleneck={activeBottleneck}
+                isCoordinator={isCoordinator}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                onModify={handleModify}
+                isLoading={agentLoading}
+              />
+            </div>
+          )}
 
           {/* Right Column: Case Timeline */}
-          <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 p-6 shadow-xs">
+          <div className={`${isCoordinator ? "lg:col-span-7" : "lg:col-span-12"} bg-white rounded-xl border border-gray-200 p-6 shadow-xs`}>
             <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-100">
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-blue-600" />

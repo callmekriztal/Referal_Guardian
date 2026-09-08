@@ -22,23 +22,39 @@ export function isUserRole(value: unknown): value is UserRole {
   return value === "coordinator" || value === "special_educator";
 }
 
+export function isStudentCoordinatorEmail(email: string): boolean {
+  if (!email) return false;
+  return /^24br[a-zA-Z0-9]{5}@rit\.ac\.in$/i.test(email.trim());
+}
+
+export function getEnforcedRole(email: string, requestedRole: UserRole): UserRole {
+  if (isStudentCoordinatorEmail(email)) {
+    return "coordinator";
+  }
+  return requestedRole;
+}
+
 function profileFromUser(user: User, fallbackRole: UserRole = "coordinator"): UserProfile {
+  const email = user.email || "";
   const metaRole = user.user_metadata?.role;
+  const baseRole = isUserRole(metaRole) ? metaRole : fallbackRole;
+  const role = getEnforcedRole(email, baseRole);
   return {
     id: user.id,
-    email: user.email || "",
-    role: isUserRole(metaRole) ? metaRole : fallbackRole,
-    fullName: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
+    email,
+    role,
+    fullName: user.user_metadata?.full_name || email.split("@")[0] || "User",
     isDemo: false,
   };
 }
 
 function readDemoProfile(): UserProfile | null {
   if (typeof window === "undefined") return null;
-  const role = localStorage.getItem("rg_role");
+  const rawRole = localStorage.getItem("rg_role");
   const email = localStorage.getItem("rg_email");
   const name = localStorage.getItem("rg_name");
-  if (!isUserRole(role) || !email) return null;
+  if (!isUserRole(rawRole) || !email) return null;
+  const role = getEnforcedRole(email, rawRole);
   return {
     id: "local-demo-user",
     email,
@@ -145,11 +161,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const setDemoUser = (role: UserRole, email: string, name: string): UserProfile => {
-    writeDemoProfile(role, email, name);
+    const enforcedRole = getEnforcedRole(email, role);
+    writeDemoProfile(enforcedRole, email, name);
     const next: UserProfile = {
       id: "local-demo-user",
       email,
-      role,
+      role: enforcedRole,
       fullName: name,
       isDemo: true,
     };

@@ -110,3 +110,31 @@ def supabase_insert(table: str, data: dict[str, Any]) -> Optional[dict[str, Any]
     except Exception as exc:
         logger.warning("Supabase insert into %s failed (RLS/network): %s", table, exc)
         return None
+
+
+def supabase_update(table: str, row_id: str, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """Safely update a record in Supabase by ID."""
+    client = get_supabase()
+    if not client:
+        return None
+    try:
+        res = client.table(table).update(data).eq("id", row_id).execute()
+        if res.data:
+            return res.data[0]
+        return None
+    except Exception as exc:
+        logger.warning("Supabase update %s id=%s failed: %s", table, row_id, exc)
+        return None
+
+
+def supabase_delete(table: str, row_id: str) -> bool:
+    """Safely delete a record in Supabase by ID."""
+    client = get_supabase()
+    if not client:
+        return False
+    try:
+        client.table(table).delete().eq("id", row_id).execute()
+        return True
+    except Exception as exc:
+        logger.warning("Supabase delete from %s id=%s failed: %s", table, row_id, exc)
+        return False
