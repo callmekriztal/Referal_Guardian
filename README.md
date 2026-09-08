@@ -1,7 +1,7 @@
 # 🛡️ Referral Guardian
 
 > **AI-Powered Inclusive Education Referral Continuity & Statutory Assessment Compliance Platform (India)**  
-> *Built with ❤️ by Team **Meridian*** 🚀
+> *Built with ❤️ by Team **Meridian***
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Agentic%20Workflow-FF6F00.svg)](https://langchain-ai.github.io/langgraph/)
