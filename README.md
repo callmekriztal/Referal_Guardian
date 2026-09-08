@@ -296,7 +296,7 @@ Follow these steps for a complete live demonstration:
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/dashboard` | Returns live KPI counts (Active, Stuck, Pending Approvals, Escalations) |
-| `GET` | `/api/cases` | Lists all referral cases with age and bottleneck status |
+| `GET` | `/api/cases` | Lists all the referral cases with age and bottleneck status |
 | `POST` | `/api/cases` | Creates a new referral case |
 | `GET` | `/api/cases/{id}` | Returns case details and full chronological timeline |
 | `POST` | `/api/cases/{id}/fast-forward` | **Time-Warp Engine**: Sets case age (`{ "days": 21 }`) |
