@@ -17,7 +17,7 @@
 | Contributor | GitHub Profile | Role & Focus |
 | :--- | :--- | :--- |
 | **Christy Dominic Cyril** | [@callmekriztal](https://github.com/callmekriztal) | Lead System Architect & LangGraph Implementation |
-| **Aryan Nair** | [@ari2387q](https://github.com/ari2387q) | Backend,Supabase Sync,AI Agent Reasoning & Testing |
+| **Aryan Nair** | [@ari2387q](https://github.com/ari2387q) | Backend , AI Agent Reasoning & Testing |
 | **Arun Mathews** | [@arun-mathews](https://github.com/arun-mathews) | Full-Stack UI/UX, Next.js Development |
 
 ---
