@@ -16,9 +16,9 @@
 
 | Contributor | GitHub Profile | Role & Focus |
 | :--- | :--- | :--- |
-| **Celeste / Kriztal** | [@callmekriztal](https://github.com/callmekriztal) | Lead Developer, System Architect & LangGraph Implementation |
-| **Aryan Nair** | [@ari2387q](https://github.com/ari2387q) | AI Agent Engineering, Reasoning Nodes & Testing |
-| **Arun Mathews** | [@arun-mathews](https://github.com/arun-mathews) | Full-Stack UI/UX, Next.js Development & Supabase Sync |
+| **Christy Dominic Cyril** | [@callmekriztal](https://github.com/callmekriztal) | Lead System Architect & LangGraph Implementation |
+| **Aryan Nair** | [@ari2387q](https://github.com/ari2387q) | Backend,Supabase Sync,AI Agent Reasoning & Testing |
+| **Arun Mathews** | [@arun-mathews](https://github.com/arun-mathews) | Full-Stack UI/UX, Next.js Development |
 
 ---
 
