@@ -3,20 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { LogIn, LogOut, User, UserCheck, Sparkles } from "lucide-react";
+import { LogIn, LogOut, User, UserCheck } from "lucide-react";
 
 export function HeaderNav() {
   const router = useRouter();
-  const { profile, signOut, setDemoUser } = useAuth();
-
-  const handlePortalClick = (targetRole: "coordinator" | "special_educator") => {
-    if (!profile?.isDemo) return;
-    if (targetRole === "coordinator") {
-      setDemoUser("coordinator", "24br02024@rit.ac.in", "Student Coordinator (24br02024@rit.ac.in)");
-    } else {
-      setDemoUser("special_educator", "dr.vance@clinic.org", "Dr. Marcus Vance (Special Educator)");
-    }
-  };
+  const { profile, signOut } = useAuth();
 
   return (
     <header className="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-50">
@@ -33,11 +24,10 @@ export function HeaderNav() {
           </span>
         </div>
 
-        {/* Portal Switcher & Auth Controls */}
+        {/* Portal tabs & Auth controls */}
         <nav className="flex items-center space-x-2 sm:space-x-4 text-sm font-medium">
           <Link
             href="/"
-            onClick={() => handlePortalClick("coordinator")}
             className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 border text-xs sm:text-sm ${
               profile?.role === "coordinator"
                 ? "bg-indigo-600 text-white border-indigo-500 shadow-xs font-semibold"
@@ -50,7 +40,6 @@ export function HeaderNav() {
 
           <Link
             href="/educator"
-            onClick={() => handlePortalClick("special_educator")}
             className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 border text-xs sm:text-sm ${
               profile?.role === "special_educator"
                 ? "bg-purple-600 text-white border-purple-500 shadow-xs font-semibold"
@@ -72,12 +61,6 @@ export function HeaderNav() {
                 <span className="text-xs text-slate-200 max-w-[130px] truncate font-medium">
                   {profile.fullName}
                 </span>
-                {profile.isDemo && (
-                  <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.2 rounded border border-amber-400/30 flex items-center gap-0.5">
-                    <Sparkles className="w-2.5 h-2.5" />
-                    <span>Demo</span>
-                  </span>
-                )}
               </div>
               <button
                 onClick={async () => {

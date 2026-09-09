@@ -11,7 +11,6 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   fullName: string;
-  isDemo?: boolean;
 }
 
 export function portalPath(role: UserRole) {
@@ -44,37 +43,7 @@ function profileFromUser(user: User, fallbackRole: UserRole = "coordinator"): Us
     email,
     role,
     fullName: user.user_metadata?.full_name || email.split("@")[0] || "User",
-    isDemo: false,
   };
-}
-
-function readDemoProfile(): UserProfile | null {
-  if (typeof window === "undefined") return null;
-  const rawRole = localStorage.getItem("rg_role");
-  const email = localStorage.getItem("rg_email");
-  const name = localStorage.getItem("rg_name");
-  if (!isUserRole(rawRole) || !email) return null;
-  const role = getEnforcedRole(email, rawRole);
-  return {
-    id: "local-demo-user",
-    email,
-    role,
-    fullName: name || email.split("@")[0],
-    isDemo: true,
-  };
-}
-
-function writeDemoProfile(role: UserRole, email: string, name: string) {
-  localStorage.setItem("rg_role", role);
-  localStorage.setItem("rg_email", email);
-  localStorage.setItem("rg_name", name);
-}
-
-function clearDemoStorage() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("rg_role");
-  localStorage.removeItem("rg_email");
-  localStorage.removeItem("rg_name");
 }
 
 interface AuthContextType {
@@ -83,7 +52,6 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  setDemoUser: (role: UserRole, email: string, name: string) => UserProfile;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -92,13 +60,6 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signOut: async () => {},
-  setDemoUser: () => ({
-    id: "demo",
-    email: "demo@school.org",
-    role: "coordinator",
-    fullName: "Coordinator",
-    isDemo: true,
-  }),
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -110,12 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const applySession = useCallback((next: Session | null) => {
     setSession(next);
     setUser(next?.user ?? null);
-    if (next?.user) {
-      clearDemoStorage();
-      setProfile(profileFromUser(next.user));
-      return;
-    }
-    setProfile(readDemoProfile());
+    setProfile(next?.user ? profileFromUser(next.user) : null);
   }, []);
 
   useEffect(() => {
@@ -128,7 +84,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         applySession(data.session);
       } catch (err) {
         console.warn("Supabase session check failed:", err);
-        if (mounted) setProfile(readDemoProfile());
       } finally {
         if (mounted) setLoading(false);
       }
@@ -149,7 +104,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [applySession]);
 
   const signOut = async () => {
-    clearDemoStorage();
     setUser(null);
     setSession(null);
     setProfile(null);
@@ -160,25 +114,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const setDemoUser = (role: UserRole, email: string, name: string): UserProfile => {
-    const enforcedRole = getEnforcedRole(email, role);
-    writeDemoProfile(enforcedRole, email, name);
-    const next: UserProfile = {
-      id: "local-demo-user",
-      email,
-      role: enforcedRole,
-      fullName: name,
-      isDemo: true,
-    };
-    setUser(null);
-    setSession(null);
-    setProfile(next);
-    void supabase.auth.signOut({ scope: "local" }).catch(() => {});
-    return next;
-  };
-
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signOut, setDemoUser }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
