@@ -40,7 +40,8 @@ export default function LoginPage() {
       }
 
       if (data?.user) {
-        const effectiveRole = getEnforcedRole(email, "special_educator");
+        const storedRole = data.user.user_metadata?.role;
+        const effectiveRole = getEnforcedRole(email, storedRole);
         router.push(portalPath(effectiveRole));
       }
     } catch (err) {
