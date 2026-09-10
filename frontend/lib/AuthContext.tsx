@@ -23,20 +23,23 @@ export function isUserRole(value: unknown): value is UserRole {
 
 export function isStudentCoordinatorEmail(email: string): boolean {
   if (!email) return false;
-  return /^24br[a-zA-Z0-9]{5}@rit\.ac\.in$/i.test(email.trim());
+  return /^24br[a-zA-Z0-9]+@rit\.ac\.in$/i.test(email.trim());
 }
 
-export function getEnforcedRole(email: string, requestedRole: UserRole): UserRole {
+export function getEnforcedRole(email: string, fallbackRole: UserRole = "special_educator"): UserRole {
   if (isStudentCoordinatorEmail(email)) {
     return "coordinator";
   }
-  return requestedRole;
+  if (fallbackRole === "coordinator") {
+    return "coordinator";
+  }
+  return "special_educator";
 }
 
-function profileFromUser(user: User, fallbackRole: UserRole = "coordinator"): UserProfile {
+function profileFromUser(user: User): UserProfile {
   const email = user.email || "";
   const metaRole = user.user_metadata?.role;
-  const baseRole = isUserRole(metaRole) ? metaRole : fallbackRole;
+  const baseRole = isUserRole(metaRole) ? metaRole : (isStudentCoordinatorEmail(email) ? "coordinator" : "special_educator");
   const role = getEnforcedRole(email, baseRole);
   return {
     id: user.id,

@@ -56,11 +56,8 @@ app = FastAPI(title="Referral Guardian MVP API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",   # alt Next.js port
-    ],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"],
+    allow_origin_regex=r"http://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -408,8 +405,14 @@ def submit_case_diagnostics(
 
 
 def _case_to_response(case: Case, db: Session, include_timeline: bool = False) -> dict[str, Any]:
-    from datetime import datetime
-    days_open = (datetime.utcnow() - case.created_date).days if case.created_date else 0
+    from datetime import datetime, timezone
+    days_open = 0
+    if case.created_date:
+        now = datetime.now(timezone.utc)
+        created = case.created_date
+        if created.tzinfo is None:
+            now = now.replace(tzinfo=None)
+        days_open = (now - created).days
 
     # Pending recommendation
     pending_rec = (

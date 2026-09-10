@@ -34,9 +34,9 @@ export default function SignupPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    // Guard: Prevent signup as coordinator if email is not an RIT email
+    // Guard: Prevent signup as coordinator if email is not a 24br RIT email
     if (role === "coordinator" && !isStudentCoordinatorEmail(email)) {
-      setErrorMsg("Coordinator access requires an RIT student email (e.g., 24br02024@rit.ac.in).");
+      setErrorMsg("Coordinator access requires an RIT student account starting with 24br (e.g., 24br02024@rit.ac.in). Specialists must use their Gmail or clinical email.");
       setLoading(false);
       return;
     }
