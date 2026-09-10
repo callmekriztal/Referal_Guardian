@@ -99,6 +99,9 @@ def supabase_get_timeline(case_id: str) -> list[dict[str, Any]]:
 
 def supabase_insert(table: str, data: dict[str, Any]) -> Optional[dict[str, Any]]:
     """Safely insert a record into Supabase."""
+    if "postgres" in os.getenv("DATABASE_URL", "").lower():
+        return data  # Already inserted directly via SQLAlchemy
+
     client = get_supabase()
     if not client:
         return None
@@ -114,6 +117,9 @@ def supabase_insert(table: str, data: dict[str, Any]) -> Optional[dict[str, Any]
 
 def supabase_update(table: str, row_id: str, data: dict[str, Any]) -> Optional[dict[str, Any]]:
     """Safely update a record in Supabase by ID."""
+    if "postgres" in os.getenv("DATABASE_URL", "").lower():
+        return data  # Already updated directly via SQLAlchemy
+
     client = get_supabase()
     if not client:
         return None
@@ -129,6 +135,9 @@ def supabase_update(table: str, row_id: str, data: dict[str, Any]) -> Optional[d
 
 def supabase_delete(table: str, row_id: str) -> bool:
     """Safely delete a record in Supabase by ID."""
+    if "postgres" in os.getenv("DATABASE_URL", "").lower():
+        return True  # Already deleted directly via SQLAlchemy
+
     client = get_supabase()
     if not client:
         return False

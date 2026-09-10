@@ -6,7 +6,8 @@ keeping nodes thin and testable.
 """
 import json
 import logging
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from sqlalchemy import func
@@ -86,6 +87,15 @@ def _case_to_dict(case: Case) -> dict[str, Any]:
         if latest.specialist:
             specialist_name = latest.specialist.name
 
+    days_open = 0
+    if case.created_date:
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
+        created = case.created_date
+        if created.tzinfo is None:
+            now = now.replace(tzinfo=None)
+        days_open = (now - created).days
+
     return {
         "id": case.id,
         "child_identifier": case.child_identifier,
@@ -105,9 +115,7 @@ def _case_to_dict(case: Case) -> dict[str, Any]:
             case.next_followup_date.isoformat() if case.next_followup_date else None
         ),
         "followup_attempts": case.followup_attempts or 0,
-        "days_open": (
-            (datetime.utcnow() - case.created_date).days if case.created_date else 0
-        ),
+        "days_open": days_open,
         # Derived fields the bottleneck detector uses
         "specialist_status": _get_specialist_status(case),
         "required_documents_missing": _has_missing_documents(case),
@@ -154,11 +162,17 @@ def _is_waiting_for_specialist(case: Case) -> bool:
 
 def _is_appointment_delayed(case: Case) -> bool:
     """True if an appointment was scheduled in the past but still REQUESTED."""
-    now = datetime.utcnow()
-    return any(
-        a.scheduled_date and a.scheduled_date < now and a.status == "REQUESTED"
-        for a in case.appointments
-    )
+    now_utc = datetime.now(timezone.utc)
+    delayed = False
+    for a in case.appointments:
+        if a.scheduled_date and a.status == "REQUESTED":
+            s_date = a.scheduled_date
+            if s_date.tzinfo is None:
+                s_date = s_date.replace(tzinfo=timezone.utc)
+            if s_date < now_utc:
+                delayed = True
+                break
+    return delayed
 
 
 # ---------------------------------------------------------------------------
@@ -410,7 +424,7 @@ def create_case(
     """Create a new referral case using human-readable ID (e.g. stu-schoolname-5001) instead of random UUID."""
     base_id = (custom_id or child_identifier or "").strip()
     if not base_id:
-        base_id = f"stu-case-{_uuid()[:6]}"
+        base_id = f"stu-case-{uuid.uuid4().hex[:6]}"
 
     case_id = base_id
     counter = 1

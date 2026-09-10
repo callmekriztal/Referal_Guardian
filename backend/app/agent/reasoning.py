@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import re
-from typing import Any
+from typing import Any, Optional
 
 from app.agent.actions import ActionType, ALLOWED_ACTIONS
 
