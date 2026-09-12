@@ -12,18 +12,8 @@ from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.getenv(
-    "SUPABASE_URL",
-    "https://dlhhdjpyhlriinjpzzce.supabase.co",
-)
-
-SUPABASE_KEY = os.getenv(
-    "SUPABASE_KEY",
-    os.getenv(
-        "SUPABASE_PUBLISHABLE_KEY",
-        "sb_publishable_519NaqrpYJdiATVg7ZZewQ_MgNNJJoS",
-    ),
-)
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL") or "https://dlhhdjpyhlriinjpzzce.supabase.co"
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY") or "sb_publishable_519NaqrpYJdiATVg7ZZewQ_MgNNJJoS"
 
 _client: Optional[Client] = None
 
