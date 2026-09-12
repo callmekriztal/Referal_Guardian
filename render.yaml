@@ -1,0 +1,64 @@
+services:
+  # -------------------------------------------------------------------------
+  # 1. FastAPI Backend (Web Service)
+  # -------------------------------------------------------------------------
+  - type: web
+    name: referral-guardian-backend
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    region: singapore # or oregon, frankfurt, etc.
+    plan: free
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # -------------------------------------------------------------------------
+  # 2. Next.js Frontend (Web Service)
+  # -------------------------------------------------------------------------
+  - type: web
+    name: referral-guardian-frontend
+    env: docker
+    dockerfilePath: frontend/Dockerfile
+    dockerContext: frontend
+    region: singapore
+    plan: free
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: referral-guardian-backend
+          property: url
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+
+  # -------------------------------------------------------------------------
+  # 3. Celery Background Worker & Scheduler
+  # -------------------------------------------------------------------------
+  - type: worker
+    name: referral-guardian-celery
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    dockerCommand: celery -A app.workers.celery_worker.celery_app worker -B --loglevel=info
+    region: singapore
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

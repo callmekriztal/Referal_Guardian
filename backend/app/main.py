@@ -54,10 +54,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Referral Guardian MVP API", lifespan=lifespan)
 
+cors_origins_env = os.getenv("CORS_ORIGINS")
+origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()] if cors_origins_env else ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"],
-    allow_origin_regex=r"http://.*",
+    allow_origins=origins if cors_origins_env else ["*"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

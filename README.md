@@ -309,6 +309,33 @@ Follow these steps for a complete live demonstration:
 
 ---
 
+## 🌐 Production Deployment (Render)
+
+Referral Guardian is configured for zero-cost deployment on **Render** via Docker using `render.yaml`.
+
+### 🔑 Environment Variables Reference
+
+All environment variables use placeholder values. **Never commit actual production secrets to Git.**
+
+#### Backend Web Service & Celery Worker
+| Variable | Description | Example / Placeholder Value |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Supabase PostgreSQL Connection String | `postgresql://postgres:YOUR_PASSWORD@db.YOUR_SUPABASE_ID.supabase.co:5432/postgres` |
+| `REDIS_URL` | Celery Broker / Result Store Redis URI | `redis://default:YOUR_REDIS_PASSWORD@YOUR_REDIS_HOST:6379/0` |
+| `CORS_ORIGINS` | Allowed Frontend Production Domains | `https://referral-guardian-frontend.onrender.com` |
+| `OPENAI_API_KEY` | *(Optional)* OpenAI / OpenRouter API Key | `sk-proj-placeholder_openai_key_string` |
+| `PORT` | Dynamic Port Injected by Render | `10000` |
+
+#### Frontend Web Service
+| Variable | Description | Example / Placeholder Value |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | Deployed FastAPI Backend URL | `https://referral-guardian-backend.onrender.com` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL | `https://dlhhdjpyhlriinjpzzce.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Publishable Anon Key | `sb_publishable_placeholder_key_string` |
+| `PORT` | Dynamic Port Injected by Render | `3000` |
+
+---
+
 ## 📜 License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
