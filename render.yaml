@@ -7,7 +7,7 @@ services:
     env: docker
     dockerfilePath: backend/Dockerfile
     dockerContext: backend
-    region: singapore # or oregon, frankfurt, etc.
+    region: singapore
     plan: free
     envVars:
       - key: PORT
@@ -35,10 +35,7 @@ services:
       - key: PORT
         value: 3000
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: referral-guardian-backend
-          property: url
+        sync: false
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
