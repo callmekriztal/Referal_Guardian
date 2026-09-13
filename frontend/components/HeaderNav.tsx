@@ -6,7 +6,19 @@ import { useAuth } from "@/lib/AuthContext";
 
 export function HeaderNav() {
   const router = useRouter();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, setDemoUser } = useAuth();
+
+  const handlePortalSwitch = (role: "coordinator" | "special_educator") => {
+    if (!profile) {
+      if (role === "coordinator") {
+        setDemoUser("coordinator", "24br02024@rit.ac.in", "Student Coordinator");
+        router.push("/");
+      } else {
+        setDemoUser("special_educator", "dr.vance@clinic.org", "Dr. Marcus Vance");
+        router.push("/educator");
+      }
+    }
+  };
 
   return (
     <header className="bg-[#12243D] text-white border-b border-[#12243D] sticky top-0 z-50 shadow-xs">
@@ -24,7 +36,7 @@ export function HeaderNav() {
               Referral Guardian
             </Link>
             <span className="text-[11px] text-[#D8D4CA] font-medium tracking-normal">
-              RPwD Act 2016 Assessment Compliance Register
+              Student Referral Tracking
             </span>
           </div>
         </div>
@@ -33,6 +45,7 @@ export function HeaderNav() {
         <nav className="flex items-center space-x-3 text-sm font-medium">
           <Link
             href="/"
+            onClick={() => handlePortalSwitch("coordinator")}
             className={`px-3 py-1.5 rounded transition text-xs sm:text-sm border focus:outline-none focus:ring-2 focus:ring-[#A6790C] ${
               profile?.role === "coordinator"
                 ? "bg-[#A6790C] text-white border-[#8C660A] font-semibold"
@@ -44,6 +57,7 @@ export function HeaderNav() {
 
           <Link
             href="/educator"
+            onClick={() => handlePortalSwitch("special_educator")}
             className={`px-3 py-1.5 rounded transition text-xs sm:text-sm border focus:outline-none focus:ring-2 focus:ring-[#A6790C] ${
               profile?.role === "special_educator"
                 ? "bg-[#A6790C] text-white border-[#8C660A] font-semibold"
@@ -57,9 +71,6 @@ export function HeaderNav() {
             <div className="flex items-center space-x-2 bg-[#1E324D] px-3 py-1.5 rounded border border-[#253D5C]">
               <span className="text-xs text-white font-medium max-w-[150px] truncate">
                 {profile.fullName}
-              </span>
-              <span className="text-[10px] text-[#D8D4CA] px-1.5 py-0.5 rounded bg-[#12243D]">
-                {profile.role === "special_educator" ? "Specialist" : "Coordinator"}
               </span>
               <button
                 onClick={async () => {

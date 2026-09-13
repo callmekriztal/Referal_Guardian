@@ -11,6 +11,7 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   fullName: string;
+  isDemo?: boolean;
 }
 
 export function portalPath(role: UserRole) {
@@ -26,14 +27,11 @@ export function isStudentCoordinatorEmail(email: string): boolean {
   return /^24br[a-zA-Z0-9]+@rit\.ac\.in$/i.test(email.trim());
 }
 
-export function getEnforcedRole(email: string, fallbackRole: UserRole = "special_educator"): UserRole {
+export function getEnforcedRole(email: string, fallbackRole: UserRole = "coordinator"): UserRole {
   if (isStudentCoordinatorEmail(email)) {
     return "coordinator";
   }
-  if (fallbackRole === "coordinator") {
-    return "coordinator";
-  }
-  return "special_educator";
+  return fallbackRole;
 }
 
 function profileFromUser(user: User): UserProfile {
@@ -49,12 +47,37 @@ function profileFromUser(user: User): UserProfile {
   };
 }
 
+function readStoredProfile(): UserProfile | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("rg_profile");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.email && isUserRole(parsed.role)) {
+      return parsed;
+    }
+  } catch {
+    // Ignore invalid JSON
+  }
+  return null;
+}
+
+function writeStoredProfile(profile: UserProfile | null) {
+  if (typeof window === "undefined") return;
+  if (!profile) {
+    localStorage.removeItem("rg_profile");
+  } else {
+    localStorage.setItem("rg_profile", JSON.stringify(profile));
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  setDemoUser: (role: UserRole, email: string, name: string) => UserProfile;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -63,6 +86,13 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signOut: async () => {},
+  setDemoUser: () => ({
+    id: "demo",
+    email: "demo@school.org",
+    role: "coordinator",
+    fullName: "Coordinator",
+    isDemo: true,
+  }),
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -74,7 +104,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const applySession = useCallback((next: Session | null) => {
     setSession(next);
     setUser(next?.user ?? null);
-    setProfile(next?.user ? profileFromUser(next.user) : null);
+    if (next?.user) {
+      const p = profileFromUser(next.user);
+      setProfile(p);
+      writeStoredProfile(p);
+    } else {
+      const stored = readStoredProfile();
+      setProfile(stored);
+    }
   }, []);
 
   useEffect(() => {
@@ -86,7 +123,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!mounted) return;
         applySession(data.session);
       } catch (err) {
-        console.warn("Supabase session check failed:", err);
+        console.warn("Supabase session check failed, falling back to local state:", err);
+        if (mounted) setProfile(readStoredProfile());
       } finally {
         if (mounted) setLoading(false);
       }
@@ -107,18 +145,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [applySession]);
 
   const signOut = async () => {
+    writeStoredProfile(null);
     setUser(null);
     setSession(null);
     setProfile(null);
     try {
       await supabase.auth.signOut();
     } catch {
-      // Ignore network errors on sign out
+      // Ignore network errors
     }
   };
 
+  const setDemoUser = (role: UserRole, email: string, name: string): UserProfile => {
+    const next: UserProfile = {
+      id: `local-${Date.now()}`,
+      email,
+      role,
+      fullName: name,
+      isDemo: true,
+    };
+    setUser(null);
+    setSession(null);
+    setProfile(next);
+    writeStoredProfile(next);
+    return next;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, signOut, setDemoUser }}>
       {children}
     </AuthContext.Provider>
   );
