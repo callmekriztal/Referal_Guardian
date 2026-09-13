@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import RouteGuard from "@/components/RouteGuard";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -80,28 +79,22 @@ export default function Dashboard() {
           coordinator: c.coordinator_id || c.coordinator || "Staff",
           assigned_specialist_name: c.assigned_specialist_name,
           assigned_specialist_email: c.assigned_specialist_email,
-          bottleneck: c.current_bottleneck || null,
+          bottleneck: c.bottleneck || c.current_bottleneck || null,
           coordinator_notes: c.coordinator_notes,
           diagnostic_details: c.diagnostic_details,
           educator_summary: c.educator_summary,
-          days_open: c.days_open || 0,
+          days_open: typeof c.days_open === "number" ? c.days_open : 0,
           followup_attempts: c.followup_attempts || 0,
         }));
         setCases(mappedCases);
       }
 
       if (specsRes.ok) {
-        const specsData = await specsRes.json();
-        setSpecialists(specsData);
-        if (specsData.length > 0 && !newSpecialistId) {
-          setNewSpecialistId(specsData[0].id);
-          if (specsData[0].email) {
-            setNewSpecialistEmail(specsData[0].email);
-          }
-        }
+        const specData = await specsRes.json();
+        setSpecialists(specData);
       }
     } catch (err) {
-      console.error("Dashboard fetch error:", err);
+      console.error("Failed to load dashboard records:", err);
     } finally {
       setLoading(false);
     }
@@ -113,435 +106,411 @@ export default function Dashboard() {
 
   const handleCreateCase = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanSchool = (newSchoolName || "school").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-    const cleanSerial = (newSerialNo || "5001").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-    const constructedId = `stu-${cleanSchool}-${cleanSerial}`;
-
     setSubmitting(true);
     try {
+      const childIdentifier = `stu-${newSchoolName.toLowerCase().trim() || "rit"}-${newSerialNo.trim() || "5001"}`;
+      const payload: any = {
+        child_identifier: childIdentifier,
+        referral_type: newReferralType,
+        status: newStatus,
+        coordinator_notes: newNotes,
+      };
+
+      if (newBottleneck) payload.bottleneck = newBottleneck;
+      if (newSpecialistId) payload.assigned_specialist_id = newSpecialistId;
+      if (newSpecialistEmail) payload.assigned_specialist_email = newSpecialistEmail;
+
       const res = await fetch(`${API_BASE}/api/cases`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          child_identifier: constructedId,
-          custom_id: constructedId,
-          referral_type: newReferralType,
-          status: newStatus,
-          current_bottleneck: newBottleneck || null,
-          assigned_specialist_id: newSpecialistId || null,
-          assigned_specialist_email: newSpecialistEmail || null,
-          coordinator_notes: newNotes || null,
-          initial_event_details: `Referral case initiated for ${constructedId} (School: ${newSchoolName || "RIT"}). Initial bottleneck: ${newBottleneck || "None"}.`,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         setShowModal(false);
         setNewNotes("");
         setNewSpecialistEmail("");
-        setNewStatus("NEW");
         setNewBottleneck("");
-        await fetchData();
-      } else {
-        alert("Failed to create case");
+        fetchData();
       }
     } catch (err) {
-      console.error("Create case error:", err);
-      alert("Error creating case");
+      console.error("Failed to create referral file:", err);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDeleteCase = async (caseId: string) => {
-    if (!confirm(`Are you sure you want to delete case ${caseId}?`)) return;
+  const handleDeleteCase = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!confirm(`Are you sure you want to delete case file ${id}?`)) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/cases/${caseId}`, {
+      const res = await fetch(`${API_BASE}/api/cases/${id}`, {
         method: "DELETE",
       });
+
       if (res.ok) {
-        setCases(cases.filter((c) => c.id !== caseId));
+        fetchData();
       }
     } catch (err) {
-      console.error("Delete case error:", err);
+      console.error("Failed to delete referral file:", err);
     }
   };
 
   const filteredCases = cases.filter((c) => {
-    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      c.id.toLowerCase().includes(term) ||
-      c.child_id.toLowerCase().includes(term) ||
-      c.referral_type.toLowerCase().includes(term);
+      c.child_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.referral_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.assigned_specialist_name && c.assigned_specialist_name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    if (!matchesSearch) return false;
-
-    if (filter === "ALL") return true;
-    if (filter === "STUCK") return c.status === "STUCK" || Boolean(c.bottleneck);
-    if (filter === "ESCALATED") return c.status === "ESCALATED";
-    return c.status === filter;
+    if (filter === "STUCK") return matchesSearch && (c.status === "STUCK" || Boolean(c.bottleneck));
+    if (filter === "ACTIVE") return matchesSearch && c.status === "ACTIVE";
+    if (filter === "COMPLETED") return matchesSearch && c.status === "COMPLETED";
+    if (filter === "OVERDUE") return matchesSearch && c.days_open >= 20;
+    return matchesSearch;
   });
 
   return (
     <RouteGuard allowedRoles={["coordinator"]}>
-    <div className="space-y-8">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Coordinator Dashboard</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Real-time referral continuity, bottleneck detection & LangGraph agent oversight.
-          </p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow-xs transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Referral Case</span>
-          </button>
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Overview Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Referrals</span>
-          <div className="flex items-baseline justify-between mt-2">
-            <span className="text-3xl font-extrabold text-slate-900">{stats.active_cases}</span>
-            <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Active</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-amber-200 shadow-xs bg-amber-50/30 flex flex-col justify-between">
-          <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Stuck Cases</span>
-          <div className="flex items-baseline justify-between mt-2">
-            <span className="text-3xl font-extrabold text-amber-600">{stats.stuck_cases}</span>
-            <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Action required</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-indigo-200 shadow-xs bg-indigo-50/30 flex flex-col justify-between">
-          <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Pending Approvals</span>
-          <div className="flex items-baseline justify-between mt-2">
-            <span className="text-3xl font-extrabold text-indigo-600">{stats.pending_actions}</span>
-            <span className="text-xs font-medium text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">AI Recommendation</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Escalations</span>
-          <div className="flex items-baseline justify-between mt-2">
-            <span className="text-3xl font-extrabold text-slate-900">{stats.escalations}</span>
-            <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">High priority</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Cases List with Search & Filters */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-4">
+      <div className="space-y-8">
+        {/* Page Title Bar */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-6 border-b border-[#D8D4CA] gap-4">
           <div>
-            <h2 className="font-bold text-slate-800 text-lg">Referral Cases</h2>
-            <span className="text-xs text-slate-500">Live cases monitored by Referral Guardian</span>
+            <div className="text-xs font-semibold text-[#526070] mb-1">
+              Inclusive Education Coordinator Workspace
+            </div>
+            <h1 className="font-serif text-2xl font-semibold text-[#12243D] tracking-tight">
+              Statutory Evaluation Register
+            </h1>
+            <p className="text-xs text-[#526070] mt-1">
+              Monitoring 20-day statutory assessment deadlines under Chapter III of the RPwD Act 2016.
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search case, child, type..."
-                className="pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 w-52"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="flex gap-1 bg-slate-200/60 p-1 rounded-lg">
-              {["ALL", "STUCK", "ESCALATED"].map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setFilter(mode)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
-                    filter === mode
-                      ? "bg-white text-indigo-700 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center space-x-3 shrink-0">
+            <button
+              onClick={fetchData}
+              className="px-3.5 py-2 text-xs font-medium text-[#12243D] bg-white border border-[#D8D4CA] rounded hover:bg-[#F5F4F0] transition focus:outline-none focus:ring-2 focus:ring-[#12243D]"
+            >
+              Refresh register
+            </button>
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-4 py-2 text-xs font-medium text-white bg-[#A6790C] border border-[#8C660A] rounded hover:bg-[#8C660A] transition focus:outline-none focus:ring-2 focus:ring-[#A6790C]"
+            >
+              Register new referral file
+            </button>
           </div>
         </div>
 
-        <div className="divide-y divide-slate-200">
-          {filteredCases.map((c) => (
-            <div key={c.id} className="p-6 hover:bg-slate-50/80 transition flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center space-x-3">
-                  <span className="font-bold text-slate-900 text-base">{c.id}</span>
-                  <span className="text-xs font-medium text-slate-500">({c.child_id})</span>
-                  {c.status === "ESCALATED" ? (
-                    <span className="bg-rose-100 text-rose-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-rose-200">
-                      ESCALATED
-                    </span>
-                  ) : c.status === "STUCK" || Boolean(c.bottleneck) ? (
-                    <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-amber-200">
-                      STUCK
-                    </span>
-                  ) : (
-                    <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200">
-                      {c.status}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-4 text-sm text-slate-600">
-                  <span>Type: <strong className="text-slate-800">{c.referral_type}</strong></span>
-                  <span>•</span>
-                  <span>Days Open: <strong className="text-slate-800">{c.days_open} days</strong></span>
-                  {(c.assigned_specialist_name || c.assigned_specialist_email) && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        Specialist:{" "}
-                        <strong className="text-purple-700">
-                          {c.assigned_specialist_name || "Assigned Doctor"}
-                        </strong>
-                        {c.assigned_specialist_email && (
-                          <span className="text-xs text-purple-600 font-mono ml-1.5 bg-purple-50 px-2 py-0.5 rounded border border-purple-200/60">
-                            {c.assigned_specialist_email}
-                          </span>
-                        )}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {c.bottleneck && (
-                  <div className="mt-2 text-xs flex items-center space-x-2 text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-md w-fit">
-                    <span className="font-semibold">Detected Bottleneck:</span>
-                    <span>{c.bottleneck.replace(/_/g, " ")}</span>
-                  </div>
-                )}
-
-                {c.diagnostic_details && (
-                  <div className="mt-2 text-xs flex items-center space-x-2 text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-md w-fit max-w-2xl">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="font-semibold shrink-0">Specialist Notes:</span>
-                    <span className="truncate italic">"{c.diagnostic_details}"</span>
-                  </div>
-                )}
-
-                {c.coordinator_notes && (
-                  <p className="text-xs text-slate-500 italic mt-1">
-                    Coordinator Notes: "{c.coordinator_notes}"
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <Link
-                  href={`/cases/${c.id}`}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm px-4 py-2 rounded-lg transition shadow-xs flex items-center space-x-2"
-                >
-                  <span>Review Case</span>
-                  <span>→</span>
-                </Link>
-
-                <button
-                  onClick={() => handleDeleteCase(c.id)}
-                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                  title="Delete case"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+        {/* Executive Summary Summary Ledger */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded border border-[#D8D4CA] shadow-2xs">
+            <div className="text-xs font-medium text-[#526070]">Active Referral Cases</div>
+            <div className="text-2xl font-semibold text-[#12243D] mt-2 font-sans tabular-nums">
+              {stats.active_cases}
             </div>
-          ))}
+            <div className="text-[11px] text-[#526070] mt-1">Currently under evaluation</div>
+          </div>
 
-          {filteredCases.length === 0 && (
-            <div className="p-12 text-center text-slate-500 text-sm space-y-3">
-              <p>No referral cases found.</p>
+          <div className="bg-white p-5 rounded border border-[#D8D4CA] shadow-2xs">
+            <div className="text-xs font-medium text-[#526070]">Delayed Evaluations</div>
+            <div className="text-2xl font-semibold text-[#9C6B14] mt-2 font-sans tabular-nums">
+              {stats.stuck_cases}
+            </div>
+            <div className="text-[11px] text-[#9C6B14] mt-1">Requires coordinator action</div>
+          </div>
+
+          <div className="bg-white p-5 rounded border border-[#D8D4CA] shadow-2xs">
+            <div className="text-xs font-medium text-[#526070]">Pending Action Reviews</div>
+            <div className="text-2xl font-semibold text-[#A6790C] mt-2 font-sans tabular-nums">
+              {stats.pending_actions}
+            </div>
+            <div className="text-[11px] text-[#A6790C] mt-1">Awaiting coordinator review</div>
+          </div>
+
+          <div className="bg-white p-5 rounded border border-[#D8D4CA] shadow-2xs">
+            <div className="text-xs font-medium text-[#526070]">Statutory Breaches (20+ Days)</div>
+            <div className="text-2xl font-semibold text-[#8C3B2E] mt-2 font-sans tabular-nums">
+              {cases.filter((c) => c.days_open >= 20).length}
+            </div>
+            <div className="text-[11px] text-[#8C3B2E] font-medium mt-1">Exceeded legal timeline</div>
+          </div>
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="bg-white p-4 rounded border border-[#D8D4CA] shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Filter by student ID, referral type, or specialist name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full text-xs px-3.5 py-2 bg-white border border-[#D8D4CA] rounded text-[#12243D] focus:outline-none focus:ring-2 focus:ring-[#12243D]"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2 text-xs font-medium">
+            <span className="text-[#526070]">Filter status:</span>
+            {["ALL", "ACTIVE", "STUCK", "OVERDUE", "COMPLETED"].map((f) => (
               <button
-                onClick={() => setShowModal(true)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition"
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded transition text-xs ${
+                  filter === f
+                    ? "bg-[#12243D] text-white font-semibold"
+                    : "bg-[#F5F4F0] text-[#12243D] hover:bg-[#EBE8DF] border border-[#D8D4CA]"
+                }`}
               >
-                Create New Referral Case
+                {f === "ALL"
+                  ? "All Files"
+                  : f === "STUCK"
+                  ? "Delayed"
+                  : f === "OVERDUE"
+                  ? "Statutory Breach"
+                  : f.charAt(0) + f.slice(1).toLowerCase()}
               </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Primary Case Register Table */}
+        <div className="bg-white rounded border border-[#D8D4CA] shadow-2xs overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#D8D4CA] flex items-center justify-between bg-[#F5F4F0]">
+            <h2 className="font-serif text-base font-semibold text-[#12243D]">
+              Referral Evaluation Cases ({filteredCases.length})
+            </h2>
+            <span className="text-xs text-[#526070]">
+              Showing records matching criteria
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="py-12 text-center text-xs text-[#526070]">
+              Loading evaluation register records...
+            </div>
+          ) : filteredCases.length === 0 ? (
+            <div className="py-12 text-center space-y-2">
+              <div className="font-serif text-base font-semibold text-[#12243D]">
+                No matching referral cases found
+              </div>
+              <p className="text-xs text-[#526070] max-w-sm mx-auto">
+                No active or historical referral records match your search criteria. Register a new referral file or clear filters.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#12243D] text-white uppercase text-[11px] font-semibold tracking-normal">
+                  <tr>
+                    <th className="py-3 px-4">Student ID</th>
+                    <th className="py-3 px-4">Evaluation Type</th>
+                    <th className="py-3 px-4">Current Status</th>
+                    <th className="py-3 px-4">20-Day Statutory Counter</th>
+                    <th className="py-3 px-4">Assigned Specialist</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#D8D4CA]">
+                  {filteredCases.map((c) => {
+                    const isBreach = c.days_open >= 20;
+                    const isApproaching = c.days_open >= 15 && c.days_open < 20;
+
+                    return (
+                      <tr key={c.id} className="hover:bg-[#F5F4F0] transition">
+                        <td className="py-3.5 px-4 font-semibold text-[#12243D] font-mono">
+                          {c.child_id}
+                        </td>
+                        <td className="py-3.5 px-4 font-medium text-[#12243D]">
+                          {c.referral_type}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {c.status === "COMPLETED" ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#EBF3ED] text-[#4B6A52] border border-[#BBD5C0] font-medium">
+                              Completed Evaluation
+                            </span>
+                          ) : c.bottleneck || c.status === "STUCK" ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#FBEBE8] text-[#8C3B2E] border border-[#F3C4BD] font-semibold">
+                              Delayed: {c.bottleneck || "Action Pending"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#EBF3ED] text-[#4B6A52] border border-[#BBD5C0] font-medium">
+                              Active Evaluation
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {isBreach ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#FBEBE8] text-[#8C3B2E] border border-[#F3C4BD] font-semibold tabular-nums">
+                              Day {c.days_open} of 20 (Statutory Breach)
+                            </span>
+                          ) : isApproaching ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#FDF8EC] text-[#9C6B14] border border-[#F4E3B9] font-medium tabular-nums">
+                              Day {c.days_open} of 20 (Approaching Limit)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#EBF3ED] text-[#4B6A52] border border-[#BBD5C0] font-medium tabular-nums">
+                              Day {c.days_open} of 20 (On Schedule)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-[#526070]">
+                          {c.assigned_specialist_name ? (
+                            <div>
+                              <div className="font-medium text-[#12243D]">{c.assigned_specialist_name}</div>
+                              {c.assigned_specialist_email && (
+                                <div className="text-[11px] text-[#526070]">{c.assigned_specialist_email}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="italic text-[#526070]">Unassigned</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end space-x-2">
+                            <Link
+                              href={`/cases/${c.id}`}
+                              className="px-3 py-1 bg-[#12243D] hover:bg-[#1E324D] text-white rounded text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-[#12243D]"
+                            >
+                              Open case file
+                            </Link>
+                            <button
+                              onClick={(e) => handleDeleteCase(c.id, e)}
+                              className="px-2 py-1 text-xs text-[#8C3B2E] hover:bg-[#FBEBE8] rounded border border-transparent hover:border-[#F3C4BD] transition"
+                              title="Delete file"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-      </div>
 
-      {/* New Referral Case Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-900">Create New Referral Case</h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateCase} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+        {/* Modal: Register New Referral File */}
+        {showModal && (
+          <div className="fixed inset-0 bg-[#12243D]/60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded border border-[#D8D4CA] max-w-lg w-full overflow-hidden shadow-lg">
+              <div className="bg-[#12243D] text-white p-5 flex items-center justify-between border-b border-[#12243D]">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    School Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. RIT or Greenwood"
-                    value={newSchoolName}
-                    onChange={(e) => setNewSchoolName(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <h3 className="font-serif text-lg font-semibold text-white">
+                    Register New Referral File
+                  </h3>
+                  <p className="text-xs text-[#D8D4CA] mt-0.5">
+                    Establishes an official student evaluation file under 20-day statutory tracking.
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Serial No / Student ID *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 5001"
-                    value={newSerialNo}
-                    onChange={(e) => setNewSerialNo(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 text-xs text-indigo-900 flex items-center justify-between">
-                <span className="font-semibold">Generated Case Identifier:</span>
-                <span className="font-mono font-bold text-indigo-700">
-                  stu-{(newSchoolName || "school").toLowerCase().trim().replace(/[^a-z0-9]/g, "")}-{(newSerialNo || "5001").toLowerCase().trim().replace(/[^a-z0-9]/g, "")}
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Referral Type *
-                </label>
-                <select
-                  value={newReferralType}
-                  onChange={(e) => setNewReferralType(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-[#D8D4CA] hover:text-white font-bold text-sm px-2 py-1"
                 >
-                  <option value="Speech-Language Evaluation">Speech-Language Evaluation</option>
-                  <option value="IEP Behavioral Assessment">IEP Behavioral Assessment</option>
-                  <option value="Occupational Therapy Evaluation">Occupational Therapy Evaluation</option>
-                  <option value="Child Psychology Assessment">Child Psychology Assessment</option>
-                  <option value="Physical Therapy Evaluation">Physical Therapy Evaluation</option>
-                </select>
+                  Close
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleCreateCase} className="p-6 space-y-4 text-xs">
+                <p className="text-[11px] text-[#526070] italic pb-2 border-b border-[#D8D4CA]">
+                  All fields required unless marked optional.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#12243D] mb-1">
+                      School identifier prefix
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newSchoolName}
+                      onChange={(e) => setNewSchoolName(e.target.value)}
+                      className="w-full p-2 bg-white border border-[#D8D4CA] rounded text-[#12243D] focus:outline-none focus:ring-2 focus:ring-[#12243D]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#12243D] mb-1">
+                      Student registration number
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newSerialNo}
+                      onChange={(e) => setNewSerialNo(e.target.value)}
+                      className="w-full p-2 bg-white border border-[#D8D4CA] rounded text-[#12243D] focus:outline-none focus:ring-2 focus:ring-[#12243D]"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Assign Specialist (Optional)
+                  <label className="block text-xs font-semibold text-[#12243D] mb-1">
+                    Evaluation type
                   </label>
                   <select
-                    value={newSpecialistId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setNewSpecialistId(id);
-                      const matched = specialists.find((s) => s.id === id);
-                      if (matched?.email) {
-                        setNewSpecialistEmail(matched.email);
-                      }
-                    }}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                    value={newReferralType}
+                    onChange={(e) => setNewReferralType(e.target.value)}
+                    className="w-full p-2 bg-white border border-[#D8D4CA] rounded text-[#12243D] focus:outline-none focus:ring-2 focus:ring-[#12243D]"
                   >
-                    <option value="">None (Assign later)</option>
-                    {specialists.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.availability_status}){s.email ? ` • ${s.email}` : ""}
-                      </option>
-                    ))}
+                    <option value="Speech-Language Evaluation">Speech-Language Evaluation</option>
+                    <option value="Psychological & Learning Assessment">Psychological & Learning Assessment</option>
+                    <option value="Occupational Therapy Evaluation">Occupational Therapy Evaluation</option>
+                    <option value="Pediatric Neurological Screening">Pediatric Neurological Screening</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Initial Status
+                  <label className="block text-xs font-semibold text-[#12243D] mb-1">
+                    Assigned specialist email (Optional)
                   </label>
-                  <div className="w-full text-xs p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-indigo-700 font-bold flex items-center justify-between">
-                    <span>NEW (Day 0 Intake)</span>
-                    <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">Clean</span>
-                  </div>
+                  <input
+                    type="email"
+                    placeholder="e.g. dr.vance@clinic.org"
+                    value={newSpecialistEmail}
+                    onChange={(e) => setNewSpecialistEmail(e.target.value)}
+                    className="w-full p-2 bg-white border border-[#D8D4CA] rounded text-[#12243D] focus:outline-none focus:ring-2 focus:ring-[#12243D]"
+                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                  <span>Doctor / Specialist Gmail ID</span>
-                  <span className="text-[11px] font-normal text-indigo-600 font-sans">Used for Doctor Login</span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="e.g. doctor@gmail.com"
-                  value={newSpecialistEmail}
-                  onChange={(e) => setNewSpecialistEmail(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
-                />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  When the doctor logs into the Specialist Portal with this email, they will see this patient in their sorted caseload roster.
-                </p>
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#12243D] mb-1">
+                    Initial coordinator notes (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Enter referral intake details or specific evaluation requirements..."
+                    value={newNotes}
+                    onChange={(e) => setNewNotes(e.target.value)}
+                    className="w-full p-2 bg-white border border-[#D8D4CA] rounded text-[#12243D] focus:outline-none focus:ring-2 focus:ring-[#12243D]"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Coordinator Instructions / Notes
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Urgent review required for IEP meeting deadline..."
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition shadow-xs disabled:opacity-50"
-                >
-                  {submitting ? "Creating..." : "Create Referral Case"}
-                </button>
-              </div>
-            </form>
+                <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D8D4CA]">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 text-xs font-medium text-[#526070] hover:bg-[#F5F4F0] rounded border border-[#D8D4CA] transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 text-xs font-medium bg-[#A6790C] hover:bg-[#8C660A] text-white rounded border border-[#8C660A] transition disabled:opacity-50"
+                  >
+                    {submitting ? "Registering..." : "Save case file"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </RouteGuard>
   );
 }
