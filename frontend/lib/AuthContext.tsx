@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await supabase.auth.signOut();
     } catch {
-      // Ignore network errors on sign out
+      // Ignore network errors
     }
   };
 

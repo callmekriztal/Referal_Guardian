@@ -17,8 +17,8 @@ export function HeaderNav() {
             RG
           </div>
           <div className="flex flex-col">
-            <Link
-              href="/"
+            <Link 
+              href="/" 
               className="font-serif text-lg font-semibold tracking-tight text-white hover:text-[#F5F4F0] transition focus:outline-none focus:ring-2 focus:ring-[#A6790C] rounded px-1 -ml-1"
             >
               Referral Guardian
