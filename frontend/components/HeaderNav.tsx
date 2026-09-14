@@ -6,19 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 
 export function HeaderNav() {
   const router = useRouter();
-  const { profile, signOut, setDemoUser } = useAuth();
-
-  const handlePortalSwitch = (role: "coordinator" | "special_educator") => {
-    if (!profile) {
-      if (role === "coordinator") {
-        setDemoUser("coordinator", "24br02024@rit.ac.in", "Student Coordinator");
-        router.push("/");
-      } else {
-        setDemoUser("special_educator", "dr.vance@clinic.org", "Dr. Marcus Vance");
-        router.push("/educator");
-      }
-    }
-  };
+  const { profile, signOut } = useAuth();
 
   return (
     <header className="bg-[#12243D] text-white border-b border-[#12243D] sticky top-0 z-50 shadow-xs">
@@ -45,7 +33,6 @@ export function HeaderNav() {
         <nav className="flex items-center space-x-3 text-sm font-medium">
           <Link
             href="/"
-            onClick={() => handlePortalSwitch("coordinator")}
             className={`px-3 py-1.5 rounded transition text-xs sm:text-sm border focus:outline-none focus:ring-2 focus:ring-[#A6790C] ${
               profile?.role === "coordinator"
                 ? "bg-[#A6790C] text-white border-[#8C660A] font-semibold"
@@ -57,7 +44,6 @@ export function HeaderNav() {
 
           <Link
             href="/educator"
-            onClick={() => handlePortalSwitch("special_educator")}
             className={`px-3 py-1.5 rounded transition text-xs sm:text-sm border focus:outline-none focus:ring-2 focus:ring-[#A6790C] ${
               profile?.role === "special_educator"
                 ? "bg-[#A6790C] text-white border-[#8C660A] font-semibold"
