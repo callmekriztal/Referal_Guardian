@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { portalPath, useAuth, getEnforcedRole } from "@/lib/AuthContext";
-import { Lock, Mail, ShieldAlert, ArrowRight } from "lucide-react";
+import { ShieldAlert, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -62,32 +62,37 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center py-10 px-4 bg-slate-50/50">
+    <div className="min-h-[75vh] flex items-center justify-center py-6 px-4">
       <div className="max-w-md w-full space-y-6">
 
+        {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-linear-to-tr from-indigo-600 to-purple-600 text-white text-3xl shadow-lg shadow-indigo-500/20">
-            🛡️
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-[#A6790C] text-white font-serif font-bold text-2xl shadow-sm">
+            RG
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-[#12243D]">
             Referral Guardian Portal
           </h1>
-          <p className="text-xs text-slate-500 max-w-xs mx-auto">
-            AI-Powered Special Education Referral Tracking & Bottleneck Prevention System
+          <p className="text-xs text-[#526070] max-w-sm mx-auto">
+            Statutory Assessment Compliance & Referral Tracking System (RPwD Act 2016)
           </p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+        {/* Form Card */}
+        <div className="bg-white p-7 rounded-lg border border-[#D8D4CA] shadow-sm space-y-5">
+          <div className="border-b border-[#D8D4CA]/60 pb-3">
+            <h3 className="text-xs font-bold text-[#12243D] uppercase tracking-wider">
               Sign In to Your Account
             </h3>
+            <p className="text-[11px] text-[#526070] mt-0.5">
+              Access coordinator monitoring or specialist assessment records.
+            </p>
           </div>
 
           {errorMsg && (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-900 space-y-2">
+            <div className="bg-[#FBEBE8] border border-[#F3C4BD] rounded-md p-3.5 text-xs text-[#8C3B2E] space-y-1">
               <div className="flex items-start space-x-2">
-                <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <ShieldAlert className="w-4 h-4 text-[#8C3B2E] shrink-0 mt-0.5" />
                 <span className="font-medium">{errorMsg}</span>
               </div>
             </div>
@@ -95,7 +100,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-[#12243D] uppercase tracking-wider mb-1.5">
                 Email Address
               </label>
               <input
@@ -104,12 +109,15 @@ export default function LoginPage() {
                 placeholder="e.g. 24br02024@rit.ac.in or doctor@clinic.org"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3.5 py-2.5 rounded-md border border-[#D8D4CA] bg-white text-[#12243D] text-xs focus:outline-none focus:ring-2 focus:ring-[#12243D] focus:border-transparent placeholder:text-[#526070]/60"
               />
+              <p className="text-[10px] text-[#526070] mt-1">
+                Coordinators must sign in using their RIT account (24br...@rit.ac.in).
+              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-[#12243D] uppercase tracking-wider mb-1.5">
                 Password
               </label>
               <input
@@ -118,32 +126,32 @@ export default function LoginPage() {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3.5 py-2.5 rounded-md border border-[#D8D4CA] bg-white text-[#12243D] text-xs focus:outline-none focus:ring-2 focus:ring-[#12243D] focus:border-transparent placeholder:text-[#526070]/60"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-lg transition focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-[#A6790C] hover:bg-[#8C660A] text-white font-semibold text-xs rounded-md transition focus:outline-none focus:ring-2 focus:ring-[#A6790C] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xs"
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Signing in...
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Authenticating...</span>
                 </>
               ) : (
                 <>
-                  Sign in
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Sign In</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
             </button>
           </form>
 
-          <div className="pt-4 border-t border-slate-100 text-center text-xs text-slate-600">
+          <div className="pt-3 border-t border-[#D8D4CA]/60 text-center text-xs text-[#526070]">
             Don't have an account?{" "}
-            <Link href="/signup" className="text-indigo-600 font-semibold hover:text-indigo-700">
+            <Link href="/signup" className="text-[#12243D] font-semibold hover:text-[#A6790C] hover:underline">
               Create one here
             </Link>
           </div>
