@@ -35,7 +35,11 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setErrorMsg(error.message);
+        if (error.message.includes("Email not confirmed")) {
+          setErrorMsg("Please verify your email address before logging in. Check your inbox (and spam folder) for the verification link.");
+        } else {
+          setErrorMsg(error.message);
+        }
         return;
       }
 

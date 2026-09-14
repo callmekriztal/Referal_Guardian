@@ -30,9 +30,8 @@ export function getEnforcedRole(email: string, fallbackRole: UserRole = "special
   if (isStudentCoordinatorEmail(email)) {
     return "coordinator";
   }
-  if (fallbackRole === "coordinator") {
-    return "coordinator";
-  }
+  // Strict rule: if it's NOT an RIT email, they can NEVER be a coordinator,
+  // regardless of what role they requested or what is saved in their metadata.
   return "special_educator";
 }
 
