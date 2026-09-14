@@ -35,7 +35,12 @@ export function getEnforcedRole(email: string, fallbackRole: UserRole = "special
   return "special_educator";
 }
 
-function profileFromUser(user: User): UserProfile {
+function profileFromUser(user: User): UserProfile | null {
+  // If email verification has not been completed, do not return a valid profile.
+  if (!user.email_confirmed_at && !user.confirmed_at) {
+    return null;
+  }
+
   const email = user.email || "";
   const metaRole = user.user_metadata?.role;
   const baseRole = isUserRole(metaRole) ? metaRole : (isStudentCoordinatorEmail(email) ? "coordinator" : "special_educator");

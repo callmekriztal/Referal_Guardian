@@ -44,6 +44,12 @@ export default function LoginPage() {
       }
 
       if (data?.user) {
+        const isConfirmed = !!(data.user.email_confirmed_at || data.user.confirmed_at);
+        if (!isConfirmed) {
+          await supabase.auth.signOut();
+          setErrorMsg("Please verify your email address before logging in. Check your inbox (and spam folder) for the verification link.");
+          return;
+        }
         const storedRole = data.user.user_metadata?.role;
         const effectiveRole = getEnforcedRole(email, storedRole);
         router.push(portalPath(effectiveRole));

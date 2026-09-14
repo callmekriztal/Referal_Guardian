@@ -60,12 +60,16 @@ export default function SignupPage() {
         return;
       }
 
-      if (data.session) {
+      const isConfirmed = !!(data.user?.email_confirmed_at || data.user?.confirmed_at);
+
+      if (data.session && isConfirmed) {
         setSuccessMsg("Account created! Redirecting to your portal…");
         router.push(portalPath(effectiveRole));
         return;
       }
 
+      // If email confirmation is required/pending, ensure session is signed out so auto-login does not occur
+      await supabase.auth.signOut();
       setSuccessMsg(
         "Account created! Please check your email inbox (and spam folder) for a verification link before signing in."
       );
