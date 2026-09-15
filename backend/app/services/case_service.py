@@ -75,17 +75,31 @@ def get_case(db: Session, case_id: str) -> Optional[dict[str, Any]]:
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         return None
-    return _case_to_dict(case)
+    return _case_to_dict(case, db)
 
 
-def _case_to_dict(case: Case) -> dict[str, Any]:
+def _case_to_dict(case: Case, db: Session = None) -> dict[str, Any]:
     specialist_name = None
+    specialist_email = getattr(case, "assigned_specialist_email", None)
+
     if case.assigned_specialist:
         specialist_name = case.assigned_specialist.name
+        if not specialist_email:
+            specialist_email = getattr(case.assigned_specialist, "email", None)
     elif case.appointments:
         latest = sorted(case.appointments, key=lambda a: a.scheduled_date or datetime.min)[-1]
         if latest.specialist:
             specialist_name = latest.specialist.name
+            if not specialist_email:
+                specialist_email = getattr(latest.specialist, "email", None)
+
+    # Fallback: if specialist_id is set but relationship wasn't loaded, query directly
+    if specialist_name is None and case.assigned_specialist_id and db is not None:
+        spec = db.query(Specialist).filter(Specialist.id == case.assigned_specialist_id).first()
+        if spec:
+            specialist_name = spec.name
+            if not specialist_email:
+                specialist_email = getattr(spec, "email", None)
 
     days_open = 0
     if case.created_date:
@@ -104,6 +118,7 @@ def _case_to_dict(case: Case) -> dict[str, Any]:
         "coordinator_id": case.coordinator_id,
         "assigned_specialist_id": case.assigned_specialist_id,
         "assigned_specialist_name": specialist_name,
+        "assigned_specialist_email": specialist_email,
         "current_bottleneck": case.current_bottleneck,
         "current_responsible_person": case.current_responsible_person,
         "coordinator_notes": case.coordinator_notes,
@@ -371,7 +386,7 @@ def get_stuck_cases(db: Session) -> list[dict[str, Any]]:
         )
         .all()
     )
-    return [_case_to_dict(c) for c in cases]
+    return [_case_to_dict(c, db) for c in cases]
 
 
 def has_pending_recommendation(db: Session, case_id: str) -> bool:
@@ -527,7 +542,7 @@ def update_case(
             f"Bottleneck updated to: {updates['current_bottleneck']}."
         )
 
-    return _case_to_dict(case)
+    return _case_to_dict(case, db)
 
 
 def delete_case(db: Session, case_id: str) -> bool:
@@ -639,4 +654,4 @@ def update_diagnostic_details(
         f"Diagnostic assessment notes submitted{name_str}: {diagnostic_details[:100]}..."
     )
 
-    return _case_to_dict(case)
+    return _case_to_dict(case, db)

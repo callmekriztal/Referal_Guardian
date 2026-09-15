@@ -440,6 +440,15 @@ def _case_to_response(case: Case, db: Session, include_timeline: bool = False) -
     if not specialist_email and case.assigned_specialist and case.assigned_specialist.email:
         specialist_email = case.assigned_specialist.email
 
+    if (specialist_name is None or not specialist_email) and case.assigned_specialist_id:
+        from app.models.models import Specialist
+        spec = db.query(Specialist).filter(Specialist.id == case.assigned_specialist_id).first()
+        if spec:
+            if specialist_name is None:
+                specialist_name = spec.name
+            if not specialist_email:
+                specialist_email = spec.email
+
     result: dict[str, Any] = {
         "id": case.id,
         "child_identifier": case.child_identifier,

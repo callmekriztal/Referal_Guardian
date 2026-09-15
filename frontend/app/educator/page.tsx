@@ -52,7 +52,6 @@ export default function SpecialEducatorPortal() {
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updatingSpecialist, setUpdatingSpecialist] = useState<string | null>(null);
   const [filterAssignedOnly, setFilterAssignedOnly] = useState(true);
   const [sortBy, setSortBy] = useState("urgency");
 
@@ -96,40 +95,6 @@ export default function SpecialEducatorPortal() {
       setEducatorName(profile.fullName);
     }
   }, [profile]);
-
-  const handleToggleAvailability = async (specId: string, currentStatus: string) => {
-    setUpdatingSpecialist(specId);
-    const newStatus = currentStatus === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE";
-
-    try {
-      const res = await fetch(`${API_BASE}/api/specialists/${specId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          availability_status: newStatus,
-          next_available_date: newStatus === "UNAVAILABLE" ? "2026-10-01" : null,
-        }),
-      });
-
-      if (res.ok) {
-        setSpecialists((prev) =>
-          prev.map((s) =>
-            s.id === specId
-              ? {
-                  ...s,
-                  availability_status: newStatus,
-                  next_available_date: newStatus === "UNAVAILABLE" ? "2026-10-01" : null,
-                }
-              : s
-          )
-        );
-      }
-    } catch (err) {
-      console.error("Failed to update specialist status:", err);
-    } finally {
-      setUpdatingSpecialist(null);
-    }
-  };
 
   const handleOpenDiagnosticModal = (c: CaseItem) => {
     setActiveCaseForDiag(c);
@@ -232,7 +197,7 @@ export default function SpecialEducatorPortal() {
               Specialist Availability Roster
             </h2>
             <span className="text-xs text-[#526070]">
-              Toggle availability to update referral intake status
+              Active specialist directory & availability status
             </span>
           </div>
 
@@ -264,18 +229,6 @@ export default function SpecialEducatorPortal() {
                       ? `Reopens: ${s.next_available_date}`
                       : "Open for clinical referrals"}
                   </span>
-
-                  <button
-                    onClick={() => handleToggleAvailability(s.id, s.availability_status)}
-                    disabled={updatingSpecialist === s.id}
-                    className="px-2.5 py-1 text-xs font-medium bg-white text-[#12243D] hover:bg-[#EBE8DF] rounded border border-[#D8D4CA] transition disabled:opacity-50"
-                  >
-                    {updatingSpecialist === s.id
-                      ? "Updating..."
-                      : s.availability_status === "AVAILABLE"
-                      ? "Mark unavailable"
-                      : "Mark available"}
-                  </button>
                 </div>
               </div>
             ))}

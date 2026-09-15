@@ -341,7 +341,16 @@ export default function Dashboard() {
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-[#526070]">
-                          {c.assigned_specialist_name || "Unassigned"}
+                          <div>
+                            <span className="font-medium text-[#12243D]">
+                              {c.assigned_specialist_name || c.assigned_specialist_email?.split("@")[0] || "Unassigned"}
+                            </span>
+                            {c.assigned_specialist_email && (
+                              <div className="text-[10px] text-[#526070]">
+                                {c.assigned_specialist_email}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end space-x-2">
