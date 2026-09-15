@@ -2,19 +2,29 @@
 Database Connection & Session
 """
 import os
-
+from pathlib import Path
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
+# Automatically load .env from backend directory, cwd, or project root
+for p in [
+    Path(__file__).resolve().parent.parent.parent / ".env",
+    Path.cwd() / ".env",
+    Path(__file__).resolve().parent.parent.parent.parent / ".env",
+]:
+    if p.exists():
+        load_dotenv(p, override=False)
+
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "sqlite:///./referral_guardian.db",
+    "postgresql://postgres.dlhhdjpyhlriinjpzzce:referalagent123@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres",
 )
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# SQLite fallback for local dev without Postgres
+# SQLite fallback if explicitly requested
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
@@ -29,7 +39,7 @@ Base = declarative_base()
 
 
 def ensure_sqlite_columns():
-    """Ensure missing columns are safely added to existing SQLite tables."""
+    """Ensure missing columns are safely added to existing SQLite tables if SQLite is used."""
     if DATABASE_URL.startswith("sqlite"):
         try:
             with engine.connect() as conn:
